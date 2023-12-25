@@ -29,14 +29,17 @@ const renderItem = ({ item, navigation }) => {
             color: "#" + item.route_text_color,
           }}
         >
-          {item.route_type == 1
-            ? "🚇 " + item.route_long_name
-            : "🚌 " + item.route_short_name + " - " + item.route_long_name}
+          {nameRoute(item)}
         </Text>
       </Pressable>
     </View>
   );
 };
+
+const nameRoute = (item) =>
+  item.route_type == 1
+    ? "🚇 " + item.route_long_name
+    : "🚌 " + item.route_short_name + " - " + item.route_long_name;
 
 function RoutesListScreen({ navigation }) {
   return (
@@ -58,11 +61,7 @@ function RouteDetailsScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.titleText}>
-        {item.route_type == 1
-          ? "🚇 " + item.route_long_name
-          : "🚌 " + item.route_short_name + " - " + item.route_long_name}
-      </Text>
+      <Text style={styles.titleText}>{nameRoute(item)}</Text>
       <StatusBar style="auto" />
     </View>
   );
@@ -80,8 +79,9 @@ function HomeScreen({ navigation }) {
         name="RouteDetails"
         component={RouteDetailsScreen}
         options={({ route }) => ({
-          title: routes.find((item) => item.route_id == route.params.itemId)
-            .route_long_name,
+          title: nameRoute(
+            routes.find((item) => item.route_id == route.params.itemId)
+          ),
         })}
       />
     </Stack.Navigator>
