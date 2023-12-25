@@ -1,0 +1,9 @@
+#+title: MewTransit
+
+* Introduction
+My very own public transit app.
+
+Focusing on Montreal for now.
+
+* How to run?
+- ~npx expo start~
