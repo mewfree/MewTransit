@@ -50,7 +50,6 @@ function RoutesListScreen({ navigation }) {
         data={routes}
         renderItem={({ item }) => renderItem({ item, navigation })}
       />
-      <StatusBar style="auto" />
     </View>
   );
 }
@@ -62,7 +61,6 @@ function RouteDetailsScreen({ route, navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.titleText}>{nameRoute(item)}</Text>
-      <StatusBar style="auto" />
     </View>
   );
 }
@@ -114,6 +112,7 @@ export default function App() {
           options={{ drawerLabel: "About" }}
         />
       </Drawer.Navigator>
+      <StatusBar style="auto" />
     </NavigationContainer>
   );
 }
