@@ -1,7 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { FlatList, StyleSheet, Text, Button, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
-import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { createDrawerNavigator } from "@react-navigation/drawer";
 import routes from "./routes.json";
 
 const renderItem = ({ item }) => {
@@ -61,12 +61,6 @@ function HomeScreen({ navigation }) {
         data={routes}
         renderItem={({ item }) => renderItem({ item })}
       />
-      <View style={{ marginBottom: 24 }}>
-        <Button
-          title="Go to About"
-          onPress={() => navigation.navigate("About")}
-        />
-      </View>
       <StatusBar style="auto" />
     </View>
   );
@@ -80,19 +74,23 @@ function AboutScreen() {
   );
 }
 
-const Stack = createNativeStackNavigator();
+const Drawer = createDrawerNavigator();
 
 export default function App() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
-        <Stack.Screen
+      <Drawer.Navigator initialRouteName="Home">
+        <Drawer.Screen
           name="Home"
           component={HomeScreen}
-          options={{ title: "Schedules" }}
+          options={{ drawerLabel: "Home" }}
         />
-        <Stack.Screen name="About" component={AboutScreen} />
-      </Stack.Navigator>
+        <Drawer.Screen
+          name="About"
+          component={AboutScreen}
+          options={{ drawerLabel: "About" }}
+        />
+      </Drawer.Navigator>
     </NavigationContainer>
   );
 }
