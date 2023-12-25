@@ -55,7 +55,7 @@ const renderItem = ({ item }) => {
 function HomeScreen({ navigation }) {
   return (
     <View style={styles.container}>
-      <Text style={styles.titleText}>Welcome to MewTransit!</Text>
+      <Text style={styles.titleText}>Welcome to MewTransit</Text>
       <FlatList
         style={styles.listContainer}
         data={routes}

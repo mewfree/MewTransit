@@ -14,7 +14,7 @@ Focusing on Montreal for now.
 - List of stop times in ~stop_times.txt~ (with ~trip_id~)
 
 * How to run?
-- ~npx expo start~
+- ~npx expo start~ (with ~--clear~ to clear cache)
 
 * How to debug?
 - Tap ~cmd+D~ in iOS Simulator
