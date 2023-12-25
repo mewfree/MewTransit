@@ -1,10 +1,64 @@
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, Text, View } from "react-native";
+import routes from "./routes.json";
+
+const renderItem = ({ item }) => {
+  if (item.route_type == 1) {
+    return (
+      <View
+        style={{
+          padding: 6,
+          marginBottom: 15,
+          borderRadius: 4,
+          backgroundColor: "#" + item.route_color,
+        }}
+      >
+        <Text
+          style={{
+            fontWeight: "500",
+            fontSize: 20,
+            color: "#" + item.route_text_color,
+          }}
+        >
+          🚇 {item.route_long_name}
+        </Text>
+      </View>
+    );
+  }
+
+  if (item.route_type == 3) {
+    return (
+      <View
+        style={{
+          padding: 5,
+          marginBottom: 5,
+          borderRadius: 4,
+          backgroundColor: "#" + item.route_color,
+        }}
+      >
+        <Text
+          style={{
+            fontWeight: "500",
+            fontSize: 20,
+            color: "#" + item.route_text_color,
+          }}
+        >
+          🚌 {item.route_short_name} - {item.route_long_name}
+        </Text>
+      </View>
+    );
+  }
+};
 
 export default function App() {
   return (
     <View style={styles.container}>
-      <Text>Welcome to MewTransit!</Text>
+      <Text style={styles.titleText}>Welcome to MewTransit!</Text>
+      <FlatList
+        style={styles.listContainer}
+        data={routes}
+        renderItem={({ item }) => renderItem({ item })}
+      />
       <StatusBar style="auto" />
     </View>
   );
@@ -13,8 +67,17 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingTop: 64,
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
+  },
+  listContainer: {
+    paddingTop: 12,
+  },
+  titleText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    padding: 24,
   },
 });

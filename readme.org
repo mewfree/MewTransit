@@ -5,5 +5,16 @@ My very own public transit app.
 
 Focusing on Montreal for now.
 
+* Tasks / Plan
+- Going to try reading GTFS files locally, unzipped for now (and converted to JSON for ease of use...)
+
+* GTFS gotchas
+- List of routes in ~routes.txt~
+- List of trips in ~trips.txt~ (with ~route_id~)
+- List of stop times in ~stop_times.txt~ (with ~trip_id~)
+
 * How to run?
 - ~npx expo start~
+
+* How to debug?
+- Tap ~cmd+D~ in iOS Simulator

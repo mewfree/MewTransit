@@ -1,0 +1,52 @@
+[
+  {
+    "route_id": 1,
+    "agency_id": "STM",
+    "route_short_name": 1,
+    "route_long_name": "Ligne 1 - Verte",
+    "route_type": 1,
+    "route_url": "http://www.stm.info/fr/infos/reseaux/metro/verte",
+    "route_color": "00B300",
+    "route_text_color": "FFFFFF"
+  },
+  {
+    "route_id": 2,
+    "agency_id": "STM",
+    "route_short_name": 2,
+    "route_long_name": "Ligne 2 - Orange",
+    "route_type": 1,
+    "route_url": "http://www.stm.info/fr/infos/reseaux/metro/orange",
+    "route_color": "D95700",
+    "route_text_color": "FFFFFF"
+  },
+  {
+    "route_id": 4,
+    "agency_id": "STM",
+    "route_short_name": 4,
+    "route_long_name": "Ligne 4 - Jaune",
+    "route_type": 1,
+    "route_url": "http://www.stm.info/fr/infos/reseaux/metro/jaune",
+    "route_color": "FFD900",
+    "route_text_color": "000000"
+  },
+  {
+    "route_id": 5,
+    "agency_id": "STM",
+    "route_short_name": 5,
+    "route_long_name": "Ligne 5 - Bleue",
+    "route_type": 1,
+    "route_url": "http://www.stm.info/fr/infos/reseaux/metro/bleue",
+    "route_color": "0095E6",
+    "route_text_color": "FFFFFF"
+  },
+  {
+    "route_id": 10,
+    "agency_id": "STM",
+    "route_short_name": 10,
+    "route_long_name": "De Lorimier",
+    "route_type": 3,
+    "route_url": "http://www.stm.info/fr/infos/reseaux/bus",
+    "route_color": "009EE0",
+    "route_text_color": "FFFFFF"
+  }
+]
