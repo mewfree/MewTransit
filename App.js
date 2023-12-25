@@ -1,5 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { FlatList, StyleSheet, Text, View } from "react-native";
+import { NavigationContainer } from "@react-navigation/native";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import routes from "./routes.json";
 
 const renderItem = ({ item }) => {
@@ -50,7 +52,7 @@ const renderItem = ({ item }) => {
   }
 };
 
-export default function App() {
+function HomeScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.titleText}>Welcome to MewTransit!</Text>
@@ -64,10 +66,22 @@ export default function App() {
   );
 }
 
+const Stack = createNativeStackNavigator();
+
+export default function App() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator>
+        <Stack.Screen name="Home" component={HomeScreen} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 64,
+    paddingTop: 4,
     backgroundColor: "#fff",
     alignItems: "center",
     justifyContent: "center",
