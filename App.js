@@ -1,18 +1,25 @@
 import { StatusBar } from "expo-status-bar";
-import { FlatList, StyleSheet, Text, Button, View } from "react-native";
+import { FlatList, StyleSheet, Text, Pressable, View } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { createDrawerNavigator } from "@react-navigation/drawer";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import routes from "./routes.json";
 
-const renderItem = ({ item }) => {
-  if (item.route_type == 1) {
-    return (
-      <View
-        style={{
-          padding: 6,
-          marginBottom: 15,
-          borderRadius: 4,
-          backgroundColor: "#" + item.route_color,
+const renderItem = ({ item, navigation }) => {
+  return (
+    <View
+      style={{
+        padding: 6,
+        marginBottom: 15,
+        borderRadius: 4,
+        backgroundColor: "#" + item.route_color,
+      }}
+    >
+      <Pressable
+        onPress={() => {
+          navigation.navigate("RouteDetails", {
+            itemId: item.route_id,
+          });
         }}
       >
         <Text
@@ -22,47 +29,62 @@ const renderItem = ({ item }) => {
             color: "#" + item.route_text_color,
           }}
         >
-          🚇 {item.route_long_name}
+          {item.route_type == 1
+            ? "🚇 " + item.route_long_name
+            : "🚌 " + item.route_short_name + " - " + item.route_long_name}
         </Text>
-      </View>
-    );
-  }
-
-  if (item.route_type == 3) {
-    return (
-      <View
-        style={{
-          padding: 5,
-          marginBottom: 5,
-          borderRadius: 4,
-          backgroundColor: "#" + item.route_color,
-        }}
-      >
-        <Text
-          style={{
-            fontWeight: "500",
-            fontSize: 20,
-            color: "#" + item.route_text_color,
-          }}
-        >
-          🚌 {item.route_short_name} - {item.route_long_name}
-        </Text>
-      </View>
-    );
-  }
+      </Pressable>
+    </View>
+  );
 };
 
-function HomeScreen({ navigation }) {
+function RoutesListScreen({ navigation }) {
   return (
     <View style={styles.container}>
       <Text style={styles.titleText}>Welcome to MewTransit</Text>
       <FlatList
         style={styles.listContainer}
         data={routes}
-        renderItem={({ item }) => renderItem({ item })}
+        renderItem={({ item }) => renderItem({ item, navigation })}
       />
       <StatusBar style="auto" />
     </View>
+  );
+}
+
+function RouteDetailsScreen({ route, navigation }) {
+  const { itemId } = route.params;
+  const item = routes.find((item) => item.route_id == itemId);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.titleText}>
+        {item.route_type == 1
+          ? "🚇 " + item.route_long_name
+          : "🚌 " + item.route_short_name + " - " + item.route_long_name}
+      </Text>
+      <StatusBar style="auto" />
+    </View>
+  );
+}
+
+function HomeScreen({ navigation }) {
+  return (
+    <Stack.Navigator initialRouteName="RoutesList">
+      <Stack.Screen
+        name="RoutesList"
+        component={RoutesListScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="RouteDetails"
+        component={RouteDetailsScreen}
+        options={({ route }) => ({
+          title: routes.find((item) => item.route_id == route.params.itemId)
+            .route_long_name,
+        })}
+      />
+    </Stack.Navigator>
   );
 }
 
@@ -75,6 +97,7 @@ function AboutScreen() {
 }
 
 const Drawer = createDrawerNavigator();
+const Stack = createNativeStackNavigator();
 
 export default function App() {
   return (
