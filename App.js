@@ -56,7 +56,7 @@ const renderRoute = ({ item, navigation }) => {
   );
 };
 
-const renderTrip = ({ item }) => {
+const renderStop = ({ item }) => {
   return (
     <View
       style={{
@@ -71,7 +71,7 @@ const renderTrip = ({ item }) => {
           fontSize: 20,
         }}
       >
-        {item.trip_headsign}
+        {item.stop_name}
       </Text>
     </View>
   );
@@ -111,7 +111,7 @@ function RoutesListScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.titleText}>Welcome to MewTransit</Text>
+      <Text style={styles.titleText}>EXO - Train Lines</Text>
       <FlatList
         style={styles.listContainer}
         data={routes}
@@ -124,7 +124,7 @@ function RoutesListScreen({ navigation }) {
 function RouteDetailsScreen({ route, navigation }) {
   const { routeId } = route.params;
   const [routeName, setRouteName] = useState("Loading...");
-  const [trips, setTrips] = useState([]);
+  const [stops, setStops] = useState([]);
 
   const db = useContext(DbContext);
 
@@ -133,7 +133,7 @@ function RouteDetailsScreen({ route, navigation }) {
       const getRouteName = async () => {
         db.transaction((tx) => {
           tx.executeSql(
-            "select * from routes where route_id=?",
+            "SELECT route_long_name FROM routes WHERE route_id = ?",
             [routeId],
             (_, { rows }) => {
               setRouteName(rows._array[0].route_long_name);
@@ -152,29 +152,34 @@ function RouteDetailsScreen({ route, navigation }) {
 
   useEffect(() => {
     if (db !== null) {
-      const getTrips = async () => {
+      const getStops = async () => {
         db.transaction((tx) => {
           tx.executeSql(
-            "select * from trips where route_id=?",
+            `SELECT DISTINCT stops.stop_id, stops.stop_name
+             FROM routes
+             JOIN trips ON routes.route_id = trips.route_id
+             JOIN stop_times ON trips.trip_id = stop_times.trip_id
+             JOIN stops ON stop_times.stop_id = stops.stop_id
+             WHERE routes.route_id = ?
+             ORDER BY stop_times.stop_sequence`,
             [routeId],
             (_, { rows }) => {
-              setTrips(rows._array);
+              setStops(rows._array);
             }
           );
         });
       };
 
-      getTrips();
+      getStops();
     }
   }, [db]);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.titleText}>Route Details</Text>
       <FlatList
         style={styles.listContainer}
-        data={trips.filter((trip) => trip.route_id == routeId)}
-        renderItem={({ item }) => renderTrip({ item })}
+        data={stops}
+        renderItem={({ item }) => renderStop({ item })}
       />
     </View>
   );
