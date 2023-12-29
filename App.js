@@ -124,31 +124,36 @@ function RoutesListScreen({ navigation }) {
 function RouteDetailsScreen({ route, navigation }) {
   const { routeId } = route.params;
   const [routeName, setRouteName] = useState("Loading...");
+  const [routeColor, setRouteColor] = useState("ffffff");
   const [stops, setStops] = useState([]);
 
   const db = useContext(DbContext);
 
   useEffect(() => {
     if (db !== null) {
-      const getRouteName = async () => {
+      const getRouteDetails = async () => {
         db.transaction((tx) => {
           tx.executeSql(
-            "SELECT route_long_name FROM routes WHERE route_id = ?",
+            "SELECT route_long_name, route_color FROM routes WHERE route_id = ?",
             [routeId],
             (_, { rows }) => {
               setRouteName(rows._array[0].route_long_name);
+              setRouteColor(rows._array[0].route_color);
             }
           );
         });
       };
 
-      getRouteName();
+      getRouteDetails();
     }
 
     navigation.setOptions({
       title: routeName,
+      headerStyle: {
+        backgroundColor: "#" + routeColor,
+      },
     });
-  }, [db, routeName]);
+  }, [db, routeName, routeColor]);
 
   useEffect(() => {
     if (db !== null) {
