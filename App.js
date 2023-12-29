@@ -29,7 +29,7 @@ const renderRoute = ({ item, navigation }) => {
   return (
     <View
       style={{
-        padding: 6,
+        padding: 12,
         marginBottom: 15,
         borderRadius: 4,
         backgroundColor: "#" + item.route_color,
