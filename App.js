@@ -56,7 +56,37 @@ const renderRoute = ({ item, navigation }) => {
   );
 };
 
-const renderStop = ({ item }) => {
+const renderStop = ({ routeId, item, navigation }) => {
+  return (
+    <View
+      style={{
+        padding: 6,
+        marginBottom: 15,
+        borderRadius: 4,
+      }}
+    >
+      <Pressable
+        onPress={() => {
+          navigation.navigate("StopDetails", {
+            routeId: routeId,
+            stopId: item.stop_id,
+          });
+        }}
+      >
+        <Text
+          style={{
+            fontWeight: "500",
+            fontSize: 20,
+          }}
+        >
+          {item.stop_name}
+        </Text>
+      </Pressable>
+    </View>
+  );
+};
+
+const renderTime = ({ item, navigation }) => {
   return (
     <View
       style={{
@@ -71,7 +101,7 @@ const renderStop = ({ item }) => {
           fontSize: 20,
         }}
       >
-        {item.stop_name}
+        {item.departure_time.substring(0, 5)} - {item.trip_headsign}
       </Text>
     </View>
   );
@@ -184,7 +214,88 @@ function RouteDetailsScreen({ route, navigation }) {
       <FlatList
         style={styles.listContainer}
         data={stops}
-        renderItem={({ item }) => renderStop({ item })}
+        renderItem={({ item }) => renderStop({ routeId, item, navigation })}
+      />
+    </View>
+  );
+}
+
+function StopDetailsScreen({ route, navigation }) {
+  const { routeId, stopId } = route.params;
+  const [stopName, setStopName] = useState("Loading...");
+  const [times, setTimes] = useState([]);
+
+  const db = useContext(DbContext);
+
+  useEffect(() => {
+    if (db !== null) {
+      const getRouteDetails = async () => {
+        db.transaction((tx) => {
+          tx.executeSql(
+            "SELECT stop_name FROM stops WHERE stop_id = ?",
+            [stopId],
+            (_, { rows }) => {
+              setStopName(rows._array[0].stop_name);
+            }
+          );
+        });
+      };
+
+      getRouteDetails();
+    }
+
+    navigation.setOptions({
+      title: stopName,
+    });
+  }, [db, stopName]);
+
+  useEffect(() => {
+    if (db !== null) {
+      const getTimes = async () => {
+        db.transaction((tx) => {
+          tx.executeSql(
+            `SELECT trips.trip_id, stop_times.departure_time, trips.trip_headsign, trips.direction_id
+             FROM stops
+             JOIN stop_times ON stops.stop_id = stop_times.stop_id
+             JOIN trips ON stop_times.trip_id = trips.trip_id
+             JOIN routes ON trips.route_id = routes.route_id
+             JOIN calendar ON trips.service_id = calendar.service_id
+             WHERE stops.stop_id = ?
+             AND routes.route_id = ?
+             AND date('now') || ' ' || time('now', 'localtime') <= stop_times.departure_time
+             AND (
+                 (strftime('%w', 'now') = '0' AND calendar.sunday = 1) OR
+                 (strftime('%w', 'now') = '1' AND calendar.monday = 1) OR
+                 (strftime('%w', 'now') = '2' AND calendar.tuesday = 1) OR
+                 (strftime('%w', 'now') = '3' AND calendar.wednesday = 1) OR
+                 (strftime('%w', 'now') = '4' AND calendar.thursday = 1) OR
+                 (strftime('%w', 'now') = '5' AND calendar.friday = 1) OR
+                 (strftime('%w', 'now') = '6' AND calendar.saturday = 1)
+             )
+             AND date('now') BETWEEN
+                 substr(calendar.start_date, 1, 4) || '-' || substr(calendar.start_date, 5, 2) || '-' || substr(calendar.start_date, 7, 2)
+                 AND
+                 substr(calendar.end_date, 1, 4) || '-' || substr(calendar.end_date, 5, 2) || '-' || substr(calendar.end_date, 7, 2)
+             ORDER BY stop_times.departure_time
+             LIMIT 15`,
+            [stopId, routeId],
+            (_, { rows }) => {
+              setTimes(rows._array);
+            }
+          );
+        });
+      };
+
+      getTimes();
+    }
+  }, [db]);
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        style={styles.listContainer}
+        data={times}
+        renderItem={({ item }) => renderTime({ item, navigation })}
       />
     </View>
   );
@@ -199,6 +310,7 @@ function HomeScreen({ navigation }) {
         options={{ headerShown: false }}
       />
       <Stack.Screen name="RouteDetails" component={RouteDetailsScreen} />
+      <Stack.Screen name="StopDetails" component={StopDetailsScreen} />
     </Stack.Navigator>
   );
 }
