@@ -56,7 +56,7 @@ const renderRoute = ({ item, navigation }) => {
   );
 };
 
-const renderStop = ({ routeId, item, navigation }) => {
+const renderStop = ({ routeDetails, item, navigation }) => {
   return (
     <View
       style={{
@@ -68,7 +68,7 @@ const renderStop = ({ routeId, item, navigation }) => {
       <Pressable
         onPress={() => {
           navigation.navigate("StopDetails", {
-            routeId: routeId,
+            routeDetails: routeDetails,
             stopDetails: item,
           });
         }}
@@ -199,20 +199,27 @@ function RouteDetailsScreen({ route, navigation }) {
       <FlatList
         style={styles.listContainer}
         data={stops}
-        renderItem={({ item }) => renderStop({ routeId, item, navigation })}
+        renderItem={({ item }) =>
+          renderStop({ routeDetails, item, navigation })
+        }
       />
     </View>
   );
 }
 
 function StopDetailsScreen({ route, navigation }) {
-  const { routeId, stopDetails } = route.params;
+  const { routeDetails, stopDetails } = route.params;
+  const routeId = routeDetails.route_id;
+  const routeColor = routeDetails.route_color;
   const stopId = stopDetails.stop_id;
   const stopName = stopDetails.stop_name;
 
   useEffect(() => {
     navigation.setOptions({
       title: stopName,
+      headerStyle: {
+        backgroundColor: "#" + routeColor,
+      },
     });
   }, [navigation]);
 
