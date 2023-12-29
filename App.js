@@ -38,7 +38,7 @@ const renderRoute = ({ item, navigation }) => {
       <Pressable
         onPress={() => {
           navigation.navigate("RouteDetails", {
-            routeId: item.route_id,
+            routeDetails: item,
           });
         }}
       >
@@ -69,7 +69,7 @@ const renderStop = ({ routeId, item, navigation }) => {
         onPress={() => {
           navigation.navigate("StopDetails", {
             routeId: routeId,
-            stopId: item.stop_id,
+            stopDetails: item,
           });
         }}
       >
@@ -152,38 +152,23 @@ function RoutesListScreen({ navigation }) {
 }
 
 function RouteDetailsScreen({ route, navigation }) {
-  const { routeId } = route.params;
-  const [routeName, setRouteName] = useState("Loading...");
-  const [routeColor, setRouteColor] = useState("ffffff");
-  const [stops, setStops] = useState([]);
-
-  const db = useContext(DbContext);
+  const { routeDetails } = route.params;
+  const routeId = routeDetails.route_id;
+  const routeName = routeDetails.route_long_name;
+  const routeColor = routeDetails.route_color;
 
   useEffect(() => {
-    if (db !== null) {
-      const getRouteDetails = async () => {
-        db.transaction((tx) => {
-          tx.executeSql(
-            "SELECT route_long_name, route_color FROM routes WHERE route_id = ?",
-            [routeId],
-            (_, { rows }) => {
-              setRouteName(rows._array[0].route_long_name);
-              setRouteColor(rows._array[0].route_color);
-            }
-          );
-        });
-      };
-
-      getRouteDetails();
-    }
-
     navigation.setOptions({
       title: routeName,
       headerStyle: {
         backgroundColor: "#" + routeColor,
       },
     });
-  }, [db, routeName, routeColor]);
+  }, [navigation]);
+
+  const [stops, setStops] = useState([]);
+
+  const db = useContext(DbContext);
 
   useEffect(() => {
     if (db !== null) {
@@ -221,33 +206,19 @@ function RouteDetailsScreen({ route, navigation }) {
 }
 
 function StopDetailsScreen({ route, navigation }) {
-  const { routeId, stopId } = route.params;
-  const [stopName, setStopName] = useState("Loading...");
-  const [times, setTimes] = useState([]);
-
-  const db = useContext(DbContext);
+  const { routeId, stopDetails } = route.params;
+  const stopId = stopDetails.stop_id;
+  const stopName = stopDetails.stop_name;
 
   useEffect(() => {
-    if (db !== null) {
-      const getRouteDetails = async () => {
-        db.transaction((tx) => {
-          tx.executeSql(
-            "SELECT stop_name FROM stops WHERE stop_id = ?",
-            [stopId],
-            (_, { rows }) => {
-              setStopName(rows._array[0].stop_name);
-            }
-          );
-        });
-      };
-
-      getRouteDetails();
-    }
-
     navigation.setOptions({
       title: stopName,
     });
-  }, [db, stopName]);
+  }, [navigation]);
+
+  const [times, setTimes] = useState([]);
+
+  const db = useContext(DbContext);
 
   useEffect(() => {
     if (db !== null) {
