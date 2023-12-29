@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "MewTransit",
-    "slug": "MewTransit",
+    "slug": "mewtransit",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,18 +11,28 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mewfree.mewtransit"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.mewfree.mewtransit"
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "92193f34-ed93-4cfd-8213-2e4d51fc7eaf"
+      }
+    },
+    "owner": "damien.gonot"
   }
 }
