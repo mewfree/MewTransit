@@ -202,6 +202,8 @@ function AboutScreen() {
   return (
     <View style={styles.container}>
       <Text style={styles.titleText}>👋</Text>
+      <Text style={styles.titleText}>❤️</Text>
+      <Text style={styles.titleText}>🚆️</Text>
     </View>
   );
 }
