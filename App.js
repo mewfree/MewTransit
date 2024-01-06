@@ -240,7 +240,7 @@ function StopDetailsScreen({ route, navigation }) {
              JOIN calendar ON trips.service_id = calendar.service_id
              WHERE stops.stop_id = ?
              AND routes.route_id = ?
-             AND date('now') || ' ' || time('now', 'localtime') <= stop_times.departure_time
+             AND time('now', 'localtime') <= stop_times.departure_time
              AND (
                  (strftime('%w', 'now') = '0' AND calendar.sunday = 1) OR
                  (strftime('%w', 'now') = '1' AND calendar.monday = 1) OR
