@@ -3,10 +3,7 @@
 * Introduction
 My very own public transit app.
 
-Focusing on Montreal for now.
-
-* Tasks / Plan
-- Going to try reading GTFS files locally, unzipped for now (and converted to JSON for ease of use...)
+Focusing on Montreal's EXO trains for now (STM GTFS data is too large...).
 
 * GTFS gotchas
 - List of routes in ~routes.txt~
