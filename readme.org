@@ -18,3 +18,7 @@ Focusing on Montreal for now.
 
 * How to debug?
 - Tap ~cmd+D~ in iOS Simulator
+
+* How to build?
+- Android: ~eas build --platform android~
+- iOS: ~eas build --platform ios~
