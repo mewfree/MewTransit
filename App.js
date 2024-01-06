@@ -255,7 +255,7 @@ function StopDetailsScreen({ route, navigation }) {
                  AND
                  substr(calendar.end_date, 1, 4) || '-' || substr(calendar.end_date, 5, 2) || '-' || substr(calendar.end_date, 7, 2)
              ORDER BY stop_times.departure_time
-             LIMIT 15`,
+             LIMIT 25`,
             [stopId, routeId],
             (_, { rows }) => {
               setTimes(rows._array);
