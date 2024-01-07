@@ -23,7 +23,8 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.mewfree.mewtransit"
+      "package": "com.mewfree.mewtransit",
+      "versionCode": 2
     },
     "web": {
       "favicon": "./assets/favicon.png"
