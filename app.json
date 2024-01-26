@@ -2,6 +2,7 @@
   "expo": {
     "name": "MewTransit",
     "slug": "mewtransit",
+    "scheme": "mewtransit",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -11,9 +12,7 @@
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.mewfree.mewtransit"
@@ -24,7 +23,7 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.mewfree.mewtransit",
-      "versionCode": 2
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -34,6 +33,7 @@
         "projectId": "92193f34-ed93-4cfd-8213-2e4d51fc7eaf"
       }
     },
-    "owner": "damien.gonot"
+    "owner": "damien.gonot",
+    "plugins": ["expo-router"]
   }
 }
