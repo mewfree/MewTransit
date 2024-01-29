@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from "react";
-import { FlatList, Pressable, View, Text, StyleSheet } from "react-native";
+import { FlatList, View, Text, StyleSheet } from "react-native";
+
 import DbContext from "../DbContext";
 
 const renderTime = ({ item, navigation }) => {
@@ -75,7 +76,7 @@ export default function StopDetailsScreen({ route, navigation }) {
             [stopId, routeId],
             (_, { rows }) => {
               setTimes(rows._array);
-            }
+            },
           );
         });
       };

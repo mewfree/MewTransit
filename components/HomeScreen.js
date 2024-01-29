@@ -1,7 +1,7 @@
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
-import RoutesListScreen from "./RoutesListScreen";
 import RouteDetailsScreen from "./RouteDetailsScreen";
+import RoutesListScreen from "./RoutesListScreen";
 import StopDetailsScreen from "./StopDetailsScreen";
 
 const Stack = createNativeStackNavigator();

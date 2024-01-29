@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from "react";
 import { FlatList, Pressable, View, Text, StyleSheet } from "react-native";
+
 import DbContext from "../DbContext";
 
 const renderStop = ({ routeDetails, item, navigation }) => {
@@ -14,7 +15,7 @@ const renderStop = ({ routeDetails, item, navigation }) => {
       <Pressable
         onPress={() => {
           navigation.navigate("StopDetails", {
-            routeDetails: routeDetails,
+            routeDetails,
             stopDetails: item,
           });
         }}
@@ -66,7 +67,7 @@ export default function RouteDetailsScreen({ route, navigation }) {
             [routeId],
             (_, { rows }) => {
               setStops(rows._array);
-            }
+            },
           );
         });
       };

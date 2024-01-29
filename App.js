@@ -1,14 +1,14 @@
-import { useState, useEffect, createContext } from "react";
-import { StatusBar } from "expo-status-bar";
-import { NavigationContainer } from "@react-navigation/native";
 import { createDrawerNavigator } from "@react-navigation/drawer";
+import { NavigationContainer } from "@react-navigation/native";
+import { Asset } from "expo-asset";
 import * as FileSystem from "expo-file-system";
 import * as SQLite from "expo-sqlite";
-import { Asset } from "expo-asset";
+import { StatusBar } from "expo-status-bar";
+import { useState, useEffect } from "react";
 
 import DbContext from "./DbContext";
-import HomeScreen from "./components/HomeScreen";
 import AboutScreen from "./components/AboutScreen";
+import HomeScreen from "./components/HomeScreen";
 
 async function openDatabase() {
   if (
@@ -16,12 +16,12 @@ async function openDatabase() {
       .exists
   ) {
     await FileSystem.makeDirectoryAsync(
-      FileSystem.documentDirectory + "SQLite"
+      FileSystem.documentDirectory + "SQLite",
     );
   }
   await FileSystem.downloadAsync(
     Asset.fromModule(require("./assets/SQLite/exo_trains.db")).uri,
-    FileSystem.documentDirectory + "SQLite/exo_trains.db"
+    FileSystem.documentDirectory + "SQLite/exo_trains.db",
   );
 
   return SQLite.openDatabase("exo_trains.db");
