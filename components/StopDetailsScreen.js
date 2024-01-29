@@ -1,9 +1,9 @@
 import { useState, useEffect, useContext } from "react";
-import { FlatList, View, Text, StyleSheet } from "react-native";
+import { FlatList, Pressable, View, Text, StyleSheet } from "react-native";
 
 import DbContext from "../DbContext";
 
-const renderTime = ({ item, navigation }) => {
+const renderTime = ({ routeDetails, stopDetails, item, navigation }) => {
   return (
     <View
       style={{
@@ -12,30 +12,36 @@ const renderTime = ({ item, navigation }) => {
         borderRadius: 4,
       }}
     >
-      <Text
-        style={{
-          fontWeight: "500",
-          fontSize: 20,
+      <Pressable
+        onPress={() => {
+          navigation.navigate("TripDetails", {
+            routeDetails,
+            stopDetails,
+            tripId: item.trip_id,
+          });
         }}
       >
-        {item.departure_time.substring(0, 5)} - {item.trip_headsign}
-      </Text>
+        <Text
+          style={{
+            fontWeight: "500",
+            fontSize: 20,
+          }}
+        >
+          {item.departure_time.substring(0, 5)} - {item.trip_headsign}
+        </Text>
+      </Pressable>
     </View>
   );
 };
 
 export default function StopDetailsScreen({ route, navigation }) {
   const { routeDetails, stopDetails } = route.params;
-  const routeId = routeDetails.route_id;
-  const routeColor = routeDetails.route_color;
-  const stopId = stopDetails.stop_id;
-  const stopName = stopDetails.stop_name;
 
   useEffect(() => {
     navigation.setOptions({
-      title: stopName,
+      title: stopDetails.stop_name,
       headerStyle: {
-        backgroundColor: "#" + routeColor,
+        backgroundColor: "#" + routeDetails.route_color,
       },
     });
   }, [navigation]);
@@ -77,7 +83,7 @@ export default function StopDetailsScreen({ route, navigation }) {
                  substr(calendar.end_date, 1, 4) || '-' || substr(calendar.end_date, 5, 2) || '-' || substr(calendar.end_date, 7, 2)
              ORDER BY stop_times.departure_time
              LIMIT 25`,
-            [stopId, routeId],
+            [stopDetails.stop_id, routeDetails.route_id],
             (_, { rows }) => {
               setTimes(rows._array);
             },
@@ -94,7 +100,9 @@ export default function StopDetailsScreen({ route, navigation }) {
       <FlatList
         style={styles.listContainer}
         data={times}
-        renderItem={({ item }) => renderTime({ item, navigation })}
+        renderItem={({ item }) =>
+          renderTime({ routeDetails, stopDetails, item, navigation })
+        }
       />
     </View>
   );

@@ -1,9 +1,9 @@
 import { useState, useEffect, useContext } from "react";
-import { FlatList, Pressable, View, Text, StyleSheet } from "react-native";
+import { FlatList, View, Text, StyleSheet } from "react-native";
 
 import DbContext from "../DbContext";
 
-const renderStop = ({ routeDetails, item, navigation }) => {
+const renderTime = ({ stopDetails, stopSequence, item, navigation }) => {
   return (
     <View
       style={{
@@ -12,74 +12,68 @@ const renderStop = ({ routeDetails, item, navigation }) => {
         borderRadius: 4,
       }}
     >
-      <Pressable
-        onPress={() => {
-          navigation.navigate("StopDetails", {
-            routeDetails,
-            stopDetails: item,
-          });
+      <Text
+        style={{
+          color: item.stop_sequence < stopSequence ? "#ccc" : "#000",
+          fontWeight: item.stop_id !== stopDetails.stop_id ? "500" : "700",
+          fontSize: 20,
         }}
       >
-        <Text
-          style={{
-            fontWeight: "500",
-            fontSize: 20,
-          }}
-        >
-          {item.stop_name}
-        </Text>
-      </Pressable>
+        {item.departure_time.substring(0, 5)} - {item.stop_name}
+      </Text>
     </View>
   );
 };
 
-export default function RouteDetailsScreen({ route, navigation }) {
-  const { routeDetails } = route.params;
+export default function TripDetailsScreen({ route, navigation }) {
+  const { routeDetails, stopDetails, tripId } = route.params;
 
   useEffect(() => {
     navigation.setOptions({
-      title: routeDetails.route_long_name,
+      title: tripId,
       headerStyle: {
         backgroundColor: "#" + routeDetails.route_color,
       },
     });
   }, [navigation]);
 
-  const [stops, setStops] = useState([]);
+  const [times, setTimes] = useState([]);
 
   const db = useContext(DbContext);
 
   useEffect(() => {
     if (db !== null) {
-      const getStops = async () => {
+      const getTimes = async () => {
         db.transaction((tx) => {
           tx.executeSql(
-            `SELECT DISTINCT stops.stop_id, stops.stop_name
-             FROM routes
-             JOIN trips ON routes.route_id = trips.route_id
-             JOIN stop_times ON trips.trip_id = stop_times.trip_id
+            `SELECT stops.stop_id, stops.stop_name, stop_times.arrival_time, stop_times.departure_time, stop_times.stop_sequence
+             FROM stop_times
              JOIN stops ON stop_times.stop_id = stops.stop_id
-             WHERE routes.route_id = ?
+             WHERE stop_times.trip_id = ?
              ORDER BY stop_times.stop_sequence`,
-            [routeDetails.route_id],
+            [tripId],
             (_, { rows }) => {
-              setStops(rows._array);
+              setTimes(rows._array);
             },
           );
         });
       };
 
-      getStops();
+      getTimes();
     }
   }, [db]);
+
+  const stopSequence = times.find(
+    (time) => time.stop_id === stopDetails.stop_id,
+  )?.stop_sequence;
 
   return (
     <View style={styles.container}>
       <FlatList
         style={styles.listContainer}
-        data={stops}
+        data={times}
         renderItem={({ item }) =>
-          renderStop({ routeDetails, item, navigation })
+          renderTime({ stopDetails, stopSequence, item, navigation })
         }
       />
     </View>
