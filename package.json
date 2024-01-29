@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
+    "lint": "eslint .",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
@@ -25,7 +26,10 @@
     "react-native-screens": "~3.29.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.20.0"
+    "@babel/core": "^7.20.0",
+    "eslint": "^8.56.0",
+    "eslint-config-universe": "^12.0.0",
+    "prettier": "^3.2.4"
   },
   "private": true
 }
