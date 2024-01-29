@@ -55,9 +55,13 @@ export default function StopDetailsScreen({ route, navigation }) {
              JOIN trips ON stop_times.trip_id = trips.trip_id
              JOIN routes ON trips.route_id = routes.route_id
              JOIN calendar ON trips.service_id = calendar.service_id
+             LEFT JOIN (SELECT trip_id, MAX(stop_sequence) AS max_sequence
+                 FROM stop_times
+                 GROUP BY trip_id) AS last_stops ON trips.trip_id = last_stops.trip_id
              WHERE stops.stop_id = ?
              AND routes.route_id = ?
              AND time('now', 'localtime') <= stop_times.departure_time
+             AND stop_times.stop_sequence < last_stops.max_sequence
              AND (
                  (strftime('%w', 'now') = '0' AND calendar.sunday = 1) OR
                  (strftime('%w', 'now') = '1' AND calendar.monday = 1) OR
