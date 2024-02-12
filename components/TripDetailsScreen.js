@@ -20,6 +20,8 @@ const renderTime = ({ stopDetails, stopSequence, item, navigation }) => {
         }}
       >
         {item.departure_time.substring(0, 5)} - {item.stop_name}
+        {item.wheelchair_boarding === 1 ? " ♿️" : ""}
+        {item.wheelchair_boarding === 2 ? " ❌♿️" : ""}
       </Text>
     </View>
   );
@@ -46,7 +48,7 @@ export default function TripDetailsScreen({ route, navigation }) {
       const getTimes = async () => {
         db.transaction((tx) => {
           tx.executeSql(
-            `SELECT stops.stop_id, stops.stop_name, stop_times.arrival_time, stop_times.departure_time, stop_times.stop_sequence
+            `SELECT stops.stop_id, stops.stop_name, stops.wheelchair_boarding, stop_times.arrival_time, stop_times.departure_time, stop_times.stop_sequence
              FROM stop_times
              JOIN stops ON stop_times.stop_id = stops.stop_id
              WHERE stop_times.trip_id = ?

@@ -28,6 +28,10 @@ const renderTime = ({ routeDetails, stopDetails, item, navigation }) => {
           }}
         >
           {item.departure_time.substring(0, 5)} - {item.trip_headsign}
+          {item.bikes_allowed === 1 ? " 🚲" : ""}
+          {item.bikes_allowed === 2 ? " 🚳" : ""}
+          {item.wheelchair_accessible === 1 ? " ♿️" : ""}
+          {item.wheelchair_accessible === 2 ? " ❌♿️" : ""}
         </Text>
       </Pressable>
     </View>
@@ -55,7 +59,7 @@ export default function StopDetailsScreen({ route, navigation }) {
       const getTimes = async () => {
         db.transaction((tx) => {
           tx.executeSql(
-            `SELECT trips.trip_id, stop_times.departure_time, trips.trip_headsign, trips.direction_id
+            `SELECT trips.trip_id, stop_times.departure_time, trips.trip_headsign, trips.direction_id, trips.bikes_allowed, trips.wheelchair_accessible
              FROM stops
              JOIN stop_times ON stops.stop_id = stop_times.stop_id
              JOIN trips ON stop_times.trip_id = trips.trip_id

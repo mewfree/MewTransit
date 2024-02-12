@@ -27,6 +27,8 @@ const renderStop = ({ routeDetails, item, navigation }) => {
           }}
         >
           {item.stop_name}
+          {item.wheelchair_boarding === 1 ? " ♿️" : ""}
+          {item.wheelchair_boarding === 2 ? " ❌♿️" : ""}
         </Text>
       </Pressable>
     </View>
@@ -54,7 +56,7 @@ export default function RouteDetailsScreen({ route, navigation }) {
       const getStops = async () => {
         db.transaction((tx) => {
           tx.executeSql(
-            `SELECT DISTINCT stops.stop_id, stops.stop_name
+            `SELECT DISTINCT stops.stop_id, stops.stop_name, stops.wheelchair_boarding
              FROM routes
              JOIN trips ON routes.route_id = trips.route_id
              JOIN stop_times ON trips.trip_id = stop_times.trip_id
