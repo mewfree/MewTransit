@@ -1,5 +1,10 @@
+import { useColorScheme } from "react-native";
 import { createDrawerNavigator } from "@react-navigation/drawer";
-import { NavigationContainer } from "@react-navigation/native";
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+} from "@react-navigation/native";
 import { Asset } from "expo-asset";
 import * as FileSystem from "expo-file-system";
 import * as SQLite from "expo-sqlite";
@@ -31,6 +36,7 @@ const Drawer = createDrawerNavigator();
 
 export default function App() {
   const [db, setDb] = useState(null);
+  const scheme = useColorScheme();
 
   useEffect(() => {
     const setDbContext = async () => {
@@ -42,7 +48,7 @@ export default function App() {
   }, []);
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={scheme === "dark" ? DarkTheme : DefaultTheme}>
       <DbContext.Provider value={db}>
         <Drawer.Navigator initialRouteName="Home">
           <Drawer.Screen
