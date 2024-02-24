@@ -1,9 +1,10 @@
 import { useState, useEffect, useContext } from "react";
 import { FlatList, Pressable, View, Text, StyleSheet } from "react-native";
+import { useTheme } from "@react-navigation/native";
 
 import DbContext from "../DbContext";
 
-const renderStop = ({ routeDetails, item, navigation }) => {
+const renderStop = ({ routeDetails, item, navigation, colors }) => {
   return (
     <View
       style={{
@@ -22,6 +23,7 @@ const renderStop = ({ routeDetails, item, navigation }) => {
       >
         <Text
           style={{
+            color: colors.text,
             fontWeight: "500",
             fontSize: 20,
           }}
@@ -44,12 +46,29 @@ export default function RouteDetailsScreen({ route, navigation }) {
       headerStyle: {
         backgroundColor: "#" + routeDetails.route_color,
       },
+      headerTitleStyle: {
+        color: "#000",
+      },
     });
   }, [navigation]);
 
   const [stops, setStops] = useState([]);
 
   const db = useContext(DbContext);
+  const { colors } = useTheme();
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingTop: 4,
+      backgroundColor: colors.background,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    listContainer: {
+      paddingTop: 12,
+    },
+  });
 
   useEffect(() => {
     if (db !== null) {
@@ -81,22 +100,9 @@ export default function RouteDetailsScreen({ route, navigation }) {
         style={styles.listContainer}
         data={stops}
         renderItem={({ item }) =>
-          renderStop({ routeDetails, item, navigation })
+          renderStop({ routeDetails, item, navigation, colors })
         }
       />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 4,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  listContainer: {
-    paddingTop: 12,
-  },
-});

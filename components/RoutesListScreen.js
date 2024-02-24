@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext } from "react";
 import { FlatList, Pressable, View, Text, StyleSheet } from "react-native";
+import { useTheme } from "@react-navigation/native";
 
 import DbContext from "../DbContext";
 
@@ -51,6 +52,26 @@ export default function RoutesListScreen({ navigation }) {
   const [routes, setRoutes] = useState([]);
 
   const db = useContext(DbContext);
+  const { colors } = useTheme();
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingTop: 4,
+      backgroundColor: colors.background,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    listContainer: {
+      paddingTop: 12,
+    },
+    titleText: {
+      fontSize: 24,
+      fontWeight: "bold",
+      color: colors.text,
+      padding: 24,
+    },
+  });
 
   useEffect(() => {
     if (db !== null) {
@@ -77,21 +98,3 @@ export default function RoutesListScreen({ navigation }) {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 4,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  listContainer: {
-    paddingTop: 12,
-  },
-  titleText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    padding: 24,
-  },
-});

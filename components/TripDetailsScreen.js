@@ -1,9 +1,16 @@
 import { useState, useEffect, useContext } from "react";
 import { FlatList, View, Text, StyleSheet } from "react-native";
+import { useTheme } from "@react-navigation/native";
 
 import DbContext from "../DbContext";
 
-const renderTime = ({ stopDetails, stopSequence, item, navigation }) => {
+const renderTime = ({
+  stopDetails,
+  stopSequence,
+  item,
+  navigation,
+  colors,
+}) => {
   return (
     <View
       style={{
@@ -14,7 +21,7 @@ const renderTime = ({ stopDetails, stopSequence, item, navigation }) => {
     >
       <Text
         style={{
-          color: item.stop_sequence < stopSequence ? "#ccc" : "#000",
+          color: item.stop_sequence < stopSequence ? "#aaa" : colors.text,
           fontWeight: item.stop_id !== stopDetails.stop_id ? "500" : "700",
           fontSize: 20,
         }}
@@ -36,12 +43,29 @@ export default function TripDetailsScreen({ route, navigation }) {
       headerStyle: {
         backgroundColor: "#" + routeDetails.route_color,
       },
+      headerTitleStyle: {
+        color: "#000",
+      },
     });
   }, [navigation]);
 
   const [times, setTimes] = useState([]);
 
   const db = useContext(DbContext);
+  const { colors } = useTheme();
+
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+      paddingTop: 4,
+      backgroundColor: colors.background,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    listContainer: {
+      paddingTop: 12,
+    },
+  });
 
   useEffect(() => {
     if (db !== null) {
@@ -75,22 +99,9 @@ export default function TripDetailsScreen({ route, navigation }) {
         style={styles.listContainer}
         data={times}
         renderItem={({ item }) =>
-          renderTime({ stopDetails, stopSequence, item, navigation })
+          renderTime({ stopDetails, stopSequence, item, navigation, colors })
         }
       />
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: 4,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  listContainer: {
-    paddingTop: 12,
-  },
-});
