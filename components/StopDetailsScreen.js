@@ -126,13 +126,19 @@ export default function StopDetailsScreen({ route, navigation }) {
 
   return (
     <View style={styles.container}>
-      <FlatList
-        style={styles.listContainer}
-        data={times}
-        renderItem={({ item }) =>
-          renderTime({ routeDetails, stopDetails, item, navigation, colors })
-        }
-      />
+      {times.length === 0 ? (
+        <Text style={{ color: colors.text, fontSize: 18 }}>
+          No more departures 😢
+        </Text>
+      ) : (
+        <FlatList
+          style={styles.listContainer}
+          data={times}
+          renderItem={({ item }) =>
+            renderTime({ routeDetails, stopDetails, item, navigation, colors })
+          }
+        />
+      )}
     </View>
   );
 }
