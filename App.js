@@ -38,6 +38,14 @@ export default function App() {
   const [db, setDb] = useState(null);
   const scheme = useColorScheme();
 
+  const LightTheme = {
+    ...DefaultTheme,
+    colors: {
+      ...DefaultTheme.colors,
+      background: "#fff",
+    },
+  };
+
   useEffect(() => {
     const setDbContext = async () => {
       const localDb = await openDatabase();
@@ -48,7 +56,7 @@ export default function App() {
   }, []);
 
   return (
-    <NavigationContainer theme={scheme === "dark" ? DarkTheme : DefaultTheme}>
+    <NavigationContainer theme={scheme === "dark" ? DarkTheme : LightTheme}>
       <DbContext.Provider value={db}>
         <Drawer.Navigator initialRouteName="Home">
           <Drawer.Screen
