@@ -77,13 +77,37 @@ Pack on R2, Worker publishes it, native nearby/stop detail run from
     Network nearby was the bridge. NEXT replaces it with a city pack.
 *** TODO Polish empty / denied-location / API-down states
     Pack sync failure / first-download progress belongs here too.
-*** TODO Stop detail screen with full upcoming list + trip view
-    Upcoming list: from the pack (NEXT). Trip view: later.
+*** TODO Stop detail screen with full upcoming list
+    Upcoming list: from the pack (NEXT).
 *** TODO Agency / mode filters (metro, bus, REM, train)
 *** TODO Recenter + follow-user camera
 *** TODO Dark / light map that tracks the OS
 *** TODO Show live ETAs when the API has realtime (not only scheduled times)
     Blocked on NEXT RT overlay, not on D1.
+*** TODO Remove the "MewTransit" brand pill top-left
+    ~src/app/index.tsx~ top bar. Decorative only — not a
+    link (About is). What is it used for? Confirm before
+    deleting.
+*** TODO Show distance from user geolocation, not map center
+    Nearby cards use ~stop.distanceM~, computed from the
+    query point. Panning the map changes that point.
+    Should stay "how far from me" when we have a fix.
+*** TODO Wheelchair as an icon, not "Wheelchair accessible" text
+    Nearby sheet + stop detail. Keep an a11y label.
+*** TODO Animate live ETAs instead of the radio-waves icon
+    ~DepartureRow~ ~LiveIcon~ (~dot.radiowaves.left.and.right~
+    / fallback dot). Pulse the minutes or a live pip.
+*** TODO Draw rail lines on the map (metro, REM, Exo trains)
+    Not bus. Pack spec currently excludes shapes — will
+    need a lean rail geometry in the pack or a static
+    overlay. Color by line.
+*** TODO Show direction on the time itself
+    Compact nearby rows hide ~headsign~. Put destination
+    on/next to the minutes (e.g. Côte-Vertu · 4 min),
+    not only on the stop-detail row.
+*** TODO Trip details screen: past stops + future stops
+    Tap a departure. Full trip sequence, this stop
+    highlighted, already-served vs still-to-come.
 
 ** API
 *** DONE New sibling repo ~mewtransit-api~
