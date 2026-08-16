@@ -17,6 +17,7 @@ export function TransitMap({
   center,
   user,
   stops,
+  recenterToken = 0,
   onSelect,
   onMoveEnd,
 }: {
@@ -24,6 +25,7 @@ export function TransitMap({
   user: Coords | null;
   stops: NearbyStop[];
   showsUser: boolean;
+  recenterToken?: number;
   onSelect: (stop: NearbyStop) => void;
   onMoveEnd?: (coords: Coords) => void;
 }) {
@@ -32,6 +34,7 @@ export function TransitMap({
   const dark = scheme === "dark";
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const readyRef = useRef(false);
+  const lastRecenter = useRef(0);
   const [origin] = useState(center);
   const pins = useMemo(() => stopPins(stops), [stops]);
   const html = useMemo(
@@ -60,6 +63,13 @@ export function TransitMap({
   useEffect(() => {
     if (readyRef.current) pushState();
   }, [pushState]);
+
+  useEffect(() => {
+    if (!readyRef.current || recenterToken === 0) return;
+    if (recenterToken === lastRecenter.current) return;
+    lastRecenter.current = recenterToken;
+    send({ type: "center", lat: center.lat, lon: center.lon, force: true });
+  }, [center.lat, center.lon, recenterToken, send]);
 
   useEffect(() => {
     const onMsg = (event: MessageEvent) => {

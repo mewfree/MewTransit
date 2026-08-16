@@ -15,7 +15,7 @@ export type MapToHost =
   | { type: "move"; lat: number; lon: number };
 
 export type HostToMap =
-  | { type: "center"; lat: number; lon: number }
+  | { type: "center"; lat: number; lon: number; force?: boolean }
   | { type: "stops"; stops: MapPin[] }
   | { type: "user"; show: boolean; lat?: number; lon?: number };
 
@@ -144,7 +144,7 @@ export function buildMapHtml({
       }
       if (msg.type === "center" && typeof msg.lat === "number") {
         var here = map.getCenter();
-        if (samePoint(here.lat, here.lng, msg.lat, msg.lon)) return;
+        if (!msg.force && samePoint(here.lat, here.lng, msg.lat, msg.lon)) return;
         programmatic = true;
         map.easeTo({ center: [msg.lon, msg.lat] });
         map.once("moveend", function () { programmatic = false; });

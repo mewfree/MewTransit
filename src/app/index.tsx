@@ -1,7 +1,15 @@
 import * as Location from "expo-location";
 import { Link, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppState, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  AppState,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NearbySheet } from "@/components/nearby-sheet";
@@ -13,6 +21,27 @@ import { isPackOpen, openActivePack } from "@/lib/pack/db";
 import { syncPack, type PackSyncProgress } from "@/lib/pack/sync";
 import type { Coords, NearbyStop } from "@/lib/types";
 
+async function requestUserCoords(): Promise<Coords | null> {
+  const existing = await Location.getForegroundPermissionsAsync();
+  let granted = existing.status === "granted";
+  if (!granted) {
+    const asked = await Location.requestForegroundPermissionsAsync();
+    granted = asked.status === "granted";
+  }
+  if (!granted) return null;
+  try {
+    const pos = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    return {
+      lat: pos.coords.latitude,
+      lon: pos.coords.longitude,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export default function MapScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -22,10 +51,14 @@ export default function MapScreen() {
   const [stops, setStops] = useState<NearbyStop[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [locating, setLocating] = useState(false);
+  const [recenterToken, setRecenterToken] = useState(0);
   const [packStatus, setPackStatus] = useState<string | null>(null);
   const moveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const centerRef = useRef(center);
-  centerRef.current = center;
+  useEffect(() => {
+    centerRef.current = center;
+  }, [center]);
 
   const loadGen = useRef(0);
 
@@ -67,27 +100,10 @@ export default function MapScreen() {
     };
 
     const locate = async (): Promise<Coords> => {
-      const existing = await Location.getForegroundPermissionsAsync();
-      let granted = existing.status === "granted";
-      if (!granted) {
-        const asked = await Location.requestForegroundPermissionsAsync();
-        granted = asked.status === "granted";
-      }
-      if (!granted) return DOWNTOWN;
-      try {
-        const pos = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        const here = {
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
-        };
-        if (isNearMontreal(here.lat, here.lon)) {
-          if (!cancelled) setUser(here);
-          return here;
-        }
-      } catch {
-        // stay on downtown montreal
+      const here = await requestUserCoords();
+      if (here && isNearMontreal(here.lat, here.lon)) {
+        if (!cancelled) setUser(here);
+        return here;
       }
       return DOWNTOWN;
     };
@@ -126,6 +142,30 @@ export default function MapScreen() {
     };
   }, [load]);
 
+  const goTo = useCallback(
+    (coords: Coords) => {
+      if (moveTimer.current) clearTimeout(moveTimer.current);
+      setCenter(coords);
+      setRecenterToken((n) => n + 1);
+      void load(coords);
+    },
+    [load],
+  );
+
+  const onLocate = useCallback(async () => {
+    if (locating) return;
+    if (user) goTo(user);
+    setLocating(true);
+    try {
+      const here = await requestUserCoords();
+      if (!here) return;
+      setUser(here);
+      goTo(here);
+    } finally {
+      setLocating(false);
+    }
+  }, [goTo, locating, user]);
+
   return (
     <View style={styles.root}>
       <TransitMap
@@ -133,6 +173,7 @@ export default function MapScreen() {
         user={user}
         stops={stops}
         showsUser={user !== null}
+        recenterToken={recenterToken}
         onSelect={(stop) => router.push(`/stop/${encodeURIComponent(stop.id)}`)}
         onMoveEnd={(coords) => {
           if (moveTimer.current) clearTimeout(moveTimer.current);
@@ -157,6 +198,29 @@ export default function MapScreen() {
           </Pressable>
         </Link>
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Center map on my location"
+        onPress={() => void onLocate()}
+        disabled={locating}
+        style={({ pressed }) => [
+          styles.locate,
+          {
+            backgroundColor: theme.sheet,
+            borderColor: theme.border,
+            opacity: pressed || locating ? 0.7 : 1,
+          },
+        ]}
+      >
+        {locating ? (
+          <ActivityIndicator size="small" color={theme.text} />
+        ) : (
+          <View style={styles.locateGlyph}>
+            <View style={[styles.locateRing, { borderColor: theme.text }]} />
+            <View style={[styles.locateDot, { backgroundColor: theme.text }]} />
+          </View>
+        )}
+      </Pressable>
       <NearbySheet
         stops={stops}
         error={error}
@@ -196,5 +260,43 @@ const styles = StyleSheet.create({
   brand: {
     fontSize: 15,
     fontWeight: "700",
+  },
+  locate: {
+    position: "absolute",
+    right: 12,
+    bottom: "51%",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    ...Platform.select({
+      web: { boxShadow: "0 2px 8px rgba(0,0,0,0.12)" },
+      default: {
+        shadowColor: "#000",
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 2 },
+      },
+    }),
+  },
+  locateGlyph: {
+    width: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  locateRing: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+  },
+  locateDot: {
+    position: "absolute",
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
 });
