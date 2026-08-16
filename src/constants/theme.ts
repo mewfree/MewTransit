@@ -6,6 +6,7 @@ export const Colors = {
     sheet: "#FFFFFF",
     border: "#E4E6EE",
     pin: "#111318",
+    live: "#087F6E",
   },
   dark: {
     text: "#F4F5F8",
@@ -14,6 +15,7 @@ export const Colors = {
     sheet: "#1B1D24",
     border: "#2A2D36",
     pin: "#F4F5F8",
+    live: "#3DDCB4",
   },
 } as const;
 

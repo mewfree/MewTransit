@@ -1,8 +1,27 @@
+import { SymbolView } from "expo-symbols";
 import { StyleSheet, Text, View } from "react-native";
 
 import { useTheme } from "@/hooks/use-theme";
 import { formatMinutes, hexColor, modeGlyph } from "@/lib/format";
 import type { Departure } from "@/lib/types";
+
+const LIVE_SYMBOL = {
+  ios: "dot.radiowaves.left.and.right",
+  android: "sensors",
+  web: "sensors",
+} as const;
+
+function LiveIcon({ color, size }: { color: string; size: number }) {
+  return (
+    <SymbolView
+      name={LIVE_SYMBOL}
+      size={size}
+      tintColor={color}
+      weight="semibold"
+      fallback={<View style={[styles.liveDot, { backgroundColor: color }]} />}
+    />
+  );
+}
 
 export function DepartureRow({
   departure,
@@ -14,6 +33,8 @@ export function DepartureRow({
   const theme = useTheme();
   const bg = hexColor(departure.routeColor);
   const fg = hexColor(departure.routeTextColor || "FFFFFF");
+  const minutes = formatMinutes(departure.minutes);
+  const etaColor = departure.realtime ? theme.live : theme.text;
 
   return (
     <View style={styles.row}>
@@ -30,9 +51,18 @@ export function DepartureRow({
           {departure.headsign}
         </Text>
       ) : null}
-      <Text style={[styles.minutes, { color: theme.text }]}>
-        {formatMinutes(departure.minutes)}
-      </Text>
+      <View
+        style={styles.eta}
+        accessible
+        accessibilityLabel={
+          departure.realtime ? `${minutes}, live` : minutes
+        }
+      >
+        <Text style={[styles.minutes, { color: etaColor }]}>{minutes}</Text>
+        {departure.realtime ? (
+          <LiveIcon color={theme.live} size={compact ? 12 : 14} />
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -60,9 +90,19 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
   },
+  eta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
   minutes: {
     fontSize: 15,
     fontWeight: "700",
     fontVariant: ["tabular-nums"],
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
 });
