@@ -36,13 +36,19 @@ The reset sprint. Get a usable map + nearby departures loop.
 *** DONE New sibling repo ~mewtransit-api~
 *** DONE Hono worker: ~/health~, ~/v1/nearby~, ~/v1/stops/:id~, ~/v1/stops/:id/departures~
 *** DONE Fixture data so the app works before real ingest
-*** TODO Official REM GTFS URL (Transitland for now)
-*** TODO Ingest STM static GTFS (do *not* dump raw SQL into D1)
-*** TODO Ingest REM static GTFS
-*** TODO Ingest Exo trains (~https://exo.quebec/xdata/trains/google_transit.zip~)
-*** TODO Lean D1 schema + spatial-ish bbox query for nearby
+*** DONE Official REM GTFS URL (~https://gtfs.gpmmom.ca/gtfs/gtfs.zip~)
+*** DONE Ingest STM static GTFS (lean D1, remaining services only, no shapes dump)
+*** DONE Ingest REM static GTFS
+*** DONE Ingest Exo trains (~https://exo.quebec/xdata/trains/google_transit.zip~)
+*** DONE Lean D1 schema + spatial-ish bbox query for nearby
 *** TODO Cron refresh of static feeds
-*** TODO Deploy + custom domain the app can hit
+*** TODO R2 archive of raw GTFS zips (versioned, ETag / current pointer)
+*** TODO Fetch-if-changed worker step: agency URL → R2 (same worker, not a second one)
+*** TODO Ingest from R2 → D1 only when the zip ETag changed
+*** DONE Deploy worker (https://mewtransit-api.dgonot.workers.dev)
+*** TODO Custom domain the app can hit
+*** TODO Wire STM GTFS-RT credentials (OAuth client id + secret via wrangler secret)
+*** DONE STM RT rate limits: cron-only fetch (1/min), D1 snapshot, backoff on 400/429
 *** TODO Live data (GTFS-RT): trip updates, vehicle positions, alerts — STM, REM, Exo
 
 ** Data notes
@@ -50,7 +56,7 @@ STM static: ~https://www.stm.info/sites/default/files/gtfs/gtfs_stm.zip~
 (page says current file valid until 2026-10-25).
 Exo trains: ~https://exo.quebec/xdata/trains/google_transit.zip~
 Exo also publishes a pile of bus-sector zips — later.
-REM: first-party URL still TBD; Transitland archives the feed.
+REM: ~https://gtfs.gpmmom.ca/gtfs/gtfs.zip~
 
 STM ~stop_times~ is huge. Ingest must normalize (agencies, routes, stops,
 trips, calendar, stop_times) with indexes on ~(stop_id, departure_time)~.
