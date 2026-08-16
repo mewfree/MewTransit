@@ -3,6 +3,8 @@ export type Mode = "metro" | "bus" | "train" | "rem";
 
 export type Departure = {
   id: string;
+  tripId?: string;
+  stopId?: string;
   routeId: string;
   routeShortName: string;
   routeLongName: string;

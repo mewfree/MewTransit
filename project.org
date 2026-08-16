@@ -11,55 +11,56 @@ Two repos:
 - this one — Expo app
 - [[file:../mewtransit-api/readme.org][mewtransit-api]] — Cloudflare Worker that owns GTFS and serves the app
 
-Next work: [[file:docs/local-pack-spec.org][local city pack spec]] (compile GTFS → downloadable
-SQLite → query on device). STM is too big for D1 *and* too big to
-bundle as a dump.
-
-Old local SQLite (~assets/SQLite/exo_trains.db~) is gone. The 2023
-~transit-worker~ experiment (raw STM dump into D1) is retired.
+Next work: [[file:docs/local-pack-spec.org][local city pack spec]]. Compile GTFS → R2 pack → query
+on device. Old bundled Exo db is gone.
 
 * Now
 The reset sprint. Get a usable map + nearby departures loop.
 
 ** NEXT — local city pack (do this first)
-Spec (read before coding): [[file:docs/local-pack-spec.org][docs/local-pack-spec.org]]
+Spec: [[file:docs/local-pack-spec.org][docs/local-pack-spec.org]]
 
-STM timetable does *not* live in D1. Compile GTFS → one Montréal SQLite
-pack on R2 → app downloads it → nearby / stop detail run on device
-(~expo-sqlite~). Worker becomes publisher, not a warehouse.
+Pack on R2, Worker publishes it, native nearby/stop detail run from
+~expo-sqlite~. Do not bundle a db in ~assets/~.
 
-Do *not* ~npm run ingest:stm~. Do *not* bundle a db in ~assets/~.
-
-*** TODO [#A] Pack builder: ~mewtransit-api/scripts/pack.ts~
-    Node + ~better-sqlite3~. Reuse ~normalizeFeed~, STM ~stop_times~
-    stream from ~scripts/ingest.ts~, Montreal calendar from ~src/lib/time.ts~.
-    Default: STM + REM + exo trains. Materialize today + tomorrow +
-    yesterday after-midnight. Schema and CLI are in the spec.
-    Done: ~npm run pack -- --skip-upload~ writes ~tmp/pack/*.db~; weekday
-    file ≤ 80 MB; ~stm:STATION_M140~ has metro departures.
-*** TODO [#A] Pack tests
-    Service-day filter, metro parent grouping, after-midnight leftovers,
-    manifest sha256. Hook into ~npm test~.
+*** DONE [#A] Pack builder: ~mewtransit-api/scripts/pack.ts~
+    2026-08-16: ~npm run pack -- --skip-upload --date 2026-08-17~ writes
+    ~tmp/pack/montreal-20260817.db~ (62.8 MB, 8750 stations, 683k
+    departures). Service filter kept 1.09M of 5.1M STM ~stop_times~
+    (18 services). Three-day file was 120 MB; dropped ~civilDate+1~ as
+    the spec allows. McGill ~stm:STATION_M140~ has green-line metro
+    (444 rows; 417 on Monday).
+*** DONE [#A] Pack tests
+    2026-08-16: ~src/lib/pack.test.ts~ hooked into ~npm test~. Service-day
+    filter, metro parent grouping, after-midnight leftovers, manifest
+    sha256.
 *** TODO [#A] R2 bucket + upload pack + ~current.json~
-    Bucket ~mewtransit-gtfs~. Keys in the spec. v1 may use ~wrangler r2
-    object put~. Done: curl manifest; downloaded db matches sha256.
-*** TODO [#A] App: sync pack on launch
-    ~expo-file-system~ + ~expo-sqlite~. Fetch manifest, download to cache,
-    verify hash, atomic swap, keep one ~.prev~. Progress if no pack yet.
-    ~EXPO_PUBLIC_PACK_MANIFEST_URL~. Spec: ~src/lib/pack/*~.
-*** TODO [#A] App: local nearby + stop departures
-    Port ~pickNearby~ and ~time.ts~. Replace ~fetchNearby~ /
-    ~fetchStopDepartures~ when a pack is open; Worker fallback if not.
-    Done: simulator, downtown, mixed rem/exo/metro minutes with
-    *airplane mode on* after one sync.
-*** TODO [#B] Worker ~GET /v1/pack/current~ (and optional R2 stream)
-    After the pack works from a raw R2 URL. Lock the bucket down.
-*** TODO [#B] STM RT overlay on local scheduled times
-    ~STM_API_KEY~ (~apikey~ header, no OAuth). Cron-only snapshot.
-    App paints ~realtime~ / minutes by ~trip_id~ + platform ~stop_id~.
-    Not a substitute for the pack.
-*** TODO [#B] Stop using ~/v1/nearby~ for native once pack is default
-    Keep the endpoint for web / fallback.
+    Code ready: ~npm run pack~ now uploads; ~npm run pack:upload -- --date
+    2026-08-16~ for today's (ET) file. Bucket stays *private*.
+    You still need to run ~wrangler r2 bucket create mewtransit-gtfs~
+    then upload + ~wrangler deploy~. Verify: curl
+    ~/v1/pack/current~; GET of pack.db matches sha256.
+*** DONE [#A] App: sync pack on launch
+    2026-08-16: ~src/lib/pack/*~ + ~expo-file-system~ / ~expo-sqlite~ /
+    ~expo-crypto~. Manifest fetch (2s), hash, atomic swap, ~.prev~
+    rollback, progress string. Default
+    ~https://mewtransit-api.dgonot.workers.dev/v1/pack/current~. Web
+    skips the pack. Not yet exercised on a device (needs the upload).
+*** DONE [#A] App: local nearby + stop departures
+    Offline-first on native: open cached pack, paint, then background
+    sync + optional ~/v1/rt/stm~ overlay. Never ~/v1/nearby~ for the
+    timetable. Web still uses the Worker.
+*** DONE [#B] Worker ~GET /v1/pack/current~ (and optional R2 stream)
+    2026-08-16: ~GET /v1/pack/current~ and ~GET /v1/pack/objects/*~
+    (montreal pack keys only). Binding ~PACKS~ → ~mewtransit-gtfs~.
+    Not public r2.dev. Deploy still needed after the bucket exists.
+*** DONE [#B] STM RT overlay on local scheduled times
+    App fetches ~/v1/rt/stm~ (cron snapshot, not STM on the request
+    path) and paints minutes by ~trip_id~ + platform ~stop_id~. Miss
+    or timeout keeps scheduled pack times. Cron/key still needed for
+    a non-empty snapshot.
+*** DONE [#B] Stop using ~/v1/nearby~ for native once pack is default
+    Native timetable is the pack only. Endpoint kept for web.
 *** TODO [#C] New D1 only if something still needs server SQL
     Catalog-only if needed. Never copy STM ~stop_times~. To drop the
     blown DB, create a new database and retarget — do not ~DELETE FROM~.

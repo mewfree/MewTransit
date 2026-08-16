@@ -1,14 +1,16 @@
 import * as Location from "expo-location";
 import { Link, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { AppState, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { NearbySheet } from "@/components/nearby-sheet";
 import { TransitMap } from "@/components/transit-map";
 import { useTheme } from "@/hooks/use-theme";
-import { fetchNearby } from "@/lib/api";
+import { fetchNearby, overlayRealtimeNearby } from "@/lib/api";
 import { DOWNTOWN, isNearMontreal } from "@/lib/format";
+import { isPackOpen, openActivePack } from "@/lib/pack/db";
+import { syncPack, type PackSyncProgress } from "@/lib/pack/sync";
 import type { Coords, NearbyStop } from "@/lib/types";
 
 export default function MapScreen() {
@@ -20,17 +22,32 @@ export default function MapScreen() {
   const [stops, setStops] = useState<NearbyStop[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [packStatus, setPackStatus] = useState<string | null>(null);
   const moveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const centerRef = useRef(center);
+  centerRef.current = center;
+
+  const loadGen = useRef(0);
 
   const load = useCallback(async (coords: Coords) => {
+    const gen = ++loadGen.current;
     setLoading(true);
     setError(null);
     try {
       const data = await fetchNearby(coords.lat, coords.lon);
+      if (gen !== loadGen.current) return;
       setStops(data.stops);
-    } catch (err) {
-      setError("Can't reach the transit API. Check your connection.");
-    } finally {
+      setLoading(false);
+      const painted = await overlayRealtimeNearby(data);
+      if (gen !== loadGen.current) return;
+      setStops(painted.stops);
+    } catch {
+      if (gen !== loadGen.current) return;
+      setError(
+        isPackOpen()
+          ? "Couldn't read the city pack."
+          : "City pack isn't on this device yet.",
+      );
       setLoading(false);
     }
   }, []);
@@ -38,42 +55,74 @@ export default function MapScreen() {
   useEffect(() => {
     let cancelled = false;
 
-    const boot = async () => {
+    const onPackProgress = (p: PackSyncProgress) => {
+      if (cancelled) return;
+      if (p.phase === "downloading" || (p.phase === "checking" && p.message)) {
+        setPackStatus(p.message);
+      } else if (p.phase === "error") {
+        setPackStatus(p.message);
+      } else if (p.phase === "ready") {
+        setPackStatus(null);
+      }
+    };
+
+    const locate = async (): Promise<Coords> => {
       const existing = await Location.getForegroundPermissionsAsync();
       let granted = existing.status === "granted";
       if (!granted) {
         const asked = await Location.requestForegroundPermissionsAsync();
         granted = asked.status === "granted";
       }
-
-      let coords = DOWNTOWN;
-      if (granted) {
-        try {
-          const pos = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.Balanced,
-          });
-          const here = {
-            lat: pos.coords.latitude,
-            lon: pos.coords.longitude,
-          };
-          if (isNearMontreal(here.lat, here.lon)) {
-            coords = here;
-            if (!cancelled) setUser(here);
-          }
-        } catch {
-          // stay on downtown montreal
+      if (!granted) return DOWNTOWN;
+      try {
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        const here = {
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+        };
+        if (isNearMontreal(here.lat, here.lon)) {
+          if (!cancelled) setUser(here);
+          return here;
         }
+      } catch {
+        // stay on downtown montreal
       }
-      if (!cancelled) {
-        setCenter(coords);
-        await load(coords);
+      return DOWNTOWN;
+    };
+
+    const runSync = async () => {
+      const result = await syncPack(onPackProgress);
+      if (cancelled) return;
+      if (isPackOpen()) {
+        await load(centerRef.current);
+      } else if (!result.opened) {
+        setError("City pack isn't on this device yet.");
+        setLoading(false);
       }
     };
 
+    const boot = async () => {
+      const coords = await locate();
+      if (cancelled) return;
+      setCenter(coords);
+      await openActivePack();
+      if (cancelled) return;
+      if (isPackOpen()) {
+        await load(coords);
+      }
+      await runSync();
+    };
+
     void boot();
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") void runSync();
+    });
     return () => {
       cancelled = true;
       if (moveTimer.current) clearTimeout(moveTimer.current);
+      sub.remove();
     };
   }, [load]);
 
@@ -112,6 +161,7 @@ export default function MapScreen() {
         stops={stops}
         error={error}
         loading={loading}
+        packStatus={packStatus}
         onRefresh={() => void load(center)}
       />
     </View>

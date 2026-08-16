@@ -14,11 +14,13 @@ export function NearbySheet({
   stops,
   error,
   loading,
+  packStatus,
   onRefresh,
 }: {
   stops: NearbyStop[];
   error?: string | null;
   loading: boolean;
+  packStatus?: string | null;
   onRefresh: () => void;
 }) {
   const theme = useTheme();
@@ -40,9 +42,11 @@ export function NearbySheet({
         <View>
           <Text style={[styles.title, { color: theme.text }]}>Nearby</Text>
           <Text style={[styles.meta, { color: theme.textSecondary }]}>
-            {loading
-              ? "Finding stops…"
-              : `${stops.length} ${stops.length === 1 ? "stop" : "stops"} nearby`}
+            {packStatus
+              ? packStatus
+              : loading
+                ? "Finding stops…"
+                : `${stops.length} ${stops.length === 1 ? "stop" : "stops"} nearby`}
           </Text>
         </View>
         <Pressable onPress={onRefresh} hitSlop={12}>

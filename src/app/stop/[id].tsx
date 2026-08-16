@@ -27,7 +27,7 @@ export default function StopScreen() {
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError("Couldn't load this stop.");
+          setError("Couldn't load this stop from the city pack.");
         }
       });
     return () => {

@@ -5,6 +5,7 @@ import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useTheme } from "@/hooks/use-theme";
 import type { Coords, NearbyStop } from "@/lib/types";
 
+// Web keeps network nearby (Worker). The downloaded city pack is native-only.
 import {
   buildMapHtml,
   parseMapMessage,

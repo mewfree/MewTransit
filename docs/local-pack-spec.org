@@ -6,9 +6,10 @@ This is the *next* piece of work. Read this file before writing code.
 Sibling TODOs live in [[file:../project.org][project.org]] under ~* Now / ** NEXT~.
 
 * Status
-Not started. Do not ingest STM ~stop_times~ into D1 again. Do not ~DELETE~
-the existing 466 MB D1 (writes are billed). Pack builder writes a *local
-file*, then R2.
+Builder, tests, app sync, local nearby, and Worker pack routes are
+written (2026-08-16). Bucket is private; the Worker serves
+~/v1/pack/current~ and streams ~pack.db~. Create ~mewtransit-gtfs~,
+~npm run pack:upload -- --date 2026-08-16~, then ~wrangler deploy~.
 
 * Goal
 Transit-style: compile GTFS once, ship a Montréal pack, answer map nearby
