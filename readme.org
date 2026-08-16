@@ -1,21 +1,23 @@
 #+title: MewTransit
+#+description: Montreal public transit app
 
-* Introduction
-My very own public transit app.
+Map-first Expo app. Nearby STM / REM / EXO stops, next departures.
 
-Focusing on Montreal's EXO trains for now (STM GTFS data is too large...).
+TODOs and the long list of later ideas live in [[file:project.org][project.org]].
+The API is a sibling repo: [[file:../mewtransit-api/readme.org][mewtransit-api]].
 
-* GTFS gotchas
-- List of routes in ~routes.txt~
-- List of trips in ~trips.txt~ (with ~route_id~)
-- List of stop times in ~stop_times.txt~ (with ~trip_id~)
+* Run
+~npx expo start~
 
-* How to run?
-- ~npx expo start~ (with ~--clear~ to clear cache)
+Talks to ~https://mewtransit-api.dgonot.workers.dev~ by default.
+Override with ~EXPO_PUBLIC_API_URL~ (e.g. ~http://127.0.0.1:8787~ for a local worker).
 
-* How to debug?
-- Tap ~cmd+D~ in iOS Simulator
+* Stack
+- Expo SDK 57
+- Expo Router
+- expo-location
+- react-native-maps
 
-* How to build?
+* Build
 - Android: ~eas build --platform android~
 - iOS: ~eas build --platform ios~

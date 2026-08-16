@@ -2,32 +2,52 @@
   "expo": {
     "name": "MewTransit",
     "slug": "mewtransit",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "scheme": "mewtransit",
     "userInterfaceStyle": "automatic",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mewfree.mewtransit"
+      "bundleIdentifier": "com.mewfree.mewtransit",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "MewTransit uses your location to show nearby STM, REM, and Exo stops."
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#111318"
       },
       "package": "com.mewfree.mewtransit",
-      "versionCode": 6
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
+      "output": "static",
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "MewTransit uses your location to show nearby STM, REM, and Exo stops."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#111318",
+          "image": "./assets/splash.png",
+          "imageWidth": 180
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
     },
     "extra": {
       "eas": {

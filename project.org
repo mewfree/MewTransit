@@ -1,0 +1,106 @@
+#+title: MewTransit
+#+description: Montreal public transit — map-first, STM / REM / Exo
+#+startup: overview indent
+
+* North star
+Personal Montreal transit app. Open the map, see where you are, tap a nearby stop, know what comes next.
+
+Agencies in scope: *STM* (metro + bus), *REM*, *Exo* (trains first, buses later).
+
+Two repos:
+- this one — Expo app
+- [[file:../mewtransit-api/readme.org][mewtransit-api]] — Cloudflare Worker that owns GTFS and serves the app
+
+Old local SQLite (~assets/SQLite/exo_trains.db~) is gone. The 2023
+~transit-worker~ experiment (raw STM dump into D1) is retired — STM is too
+big to ship as a dump.
+
+* Now
+The reset sprint. Get a usable map + nearby departures loop.
+
+** App
+*** DONE Track work in this file
+*** DONE Drop local SQLite / expo-sqlite / bundled Exo DB
+*** DONE Expo SDK 57 + Expo Router + TypeScript
+*** DONE Map-first home (user location, nearby stop pins)
+*** DONE Bottom sheet: closest stops + next departures
+*** DONE Talk to mewtransit-api, not a local DB
+*** TODO Polish empty / denied-location / API-down states
+*** TODO Stop detail screen with full upcoming list + trip view
+*** TODO Agency / mode filters (metro, bus, REM, train)
+*** TODO Recenter + follow-user camera
+*** TODO Dark / light map that tracks the OS
+*** TODO Show live ETAs when the API has realtime (not only scheduled times)
+
+** API
+*** DONE New sibling repo ~mewtransit-api~
+*** DONE Hono worker: ~/health~, ~/v1/nearby~, ~/v1/stops/:id~, ~/v1/stops/:id/departures~
+*** DONE Fixture data so the app works before real ingest
+*** TODO Official REM GTFS URL (Transitland for now)
+*** TODO Ingest STM static GTFS (do *not* dump raw SQL into D1)
+*** TODO Ingest REM static GTFS
+*** TODO Ingest Exo trains (~https://exo.quebec/xdata/trains/google_transit.zip~)
+*** TODO Lean D1 schema + spatial-ish bbox query for nearby
+*** TODO Cron refresh of static feeds
+*** TODO Deploy + custom domain the app can hit
+*** TODO Live data (GTFS-RT): trip updates, vehicle positions, alerts — STM, REM, Exo
+
+** Data notes
+STM static: ~https://www.stm.info/sites/default/files/gtfs/gtfs_stm.zip~
+(page says current file valid until 2026-10-25).
+Exo trains: ~https://exo.quebec/xdata/trains/google_transit.zip~
+Exo also publishes a pile of bus-sector zips — later.
+REM: first-party URL still TBD; Transitland archives the feed.
+
+STM ~stop_times~ is huge. Ingest must normalize (agencies, routes, stops,
+trips, calendar, stop_times) with indexes on ~(stop_id, departure_time)~.
+Never ship the 1.4GB dump again.
+
+Live data is a first-class goal, not a nice-to-have. Static GTFS is the
+fallback; GTFS-RT trip updates should drive the minutes on the map.
+
+* Later
+Ideas, not commitments. Grab from here when ~Now~ is boring.
+
+** Realtime
+*** TODO Live data for STM, REM, and Exo (GTFS-RT)
+*** TODO STM GTFS-RT (vehicles + trip updates + alerts)
+*** TODO REM live positions / trip updates
+*** TODO Exo trains RT (access request: Chrono-SAEIV portal)
+*** TODO Live vehicle dots on the map
+*** TODO Delay / crowding badges on departures
+*** TODO Disruption banner on the map
+
+** Trip planning
+*** TODO A→B directions (OTP? Valhalla? own graph?)
+*** TODO Walking time to the stop
+*** TODO "Leave now" countdown
+*** TODO Transfers that actually work (Berri, Lionel-Groulx, Vendôme, Côte-de-Liesse)
+*** TODO Share a trip
+
+** Product
+*** TODO Favourites / pinned stops
+*** TODO Search (stop, route, headsign)
+*** TODO Service alerts inbox
+*** TODO Home / lock-screen widgets
+*** TODO Departure notifications
+*** TODO French (fr-CA) — UI + system locale, English fallback
+*** TODO Wheelchair / bike flags back in the UI
+*** TODO Night-bus treatment
+*** TODO BIXI overlay (optional layer, not a second app)
+*** TODO Offline last-known schedules
+
+** Agencies / coverage
+*** TODO Exo bus sectors (CIT*, MRCL*, LRRS, …)
+*** TODO RTL / STL / other agglomeration if we stay "Greater Montreal"
+*** TODO STL Laval, RTL Longueuil as explicit later agencies
+
+** Platform
+*** TODO EAS production builds on SDK 57
+*** TODO Android Google Maps API key
+*** TODO Crash / analytics (keep it tiny)
+
+* History
+- 2023–2024: Expo 50, local Exo-trains SQLite, browse routes → stops → times
+- 2023: ~transit-worker~ stub + failed STM-into-D1 experiment
+- 2026-08-16: Full reset. Map-first. API-owned data. SDK 57.
