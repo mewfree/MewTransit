@@ -1,0 +1,460 @@
+#+title: Local city pack — implementation spec
+#+description: Compile STM/REM/exo into a downloadable SQLite pack; query nearby on device
+#+startup: overview indent
+
+This is the *next* piece of work. Read this file before writing code.
+Sibling TODOs live in [[file:../project.org][project.org]] under ~* Now / ** NEXT~.
+
+* Status
+Not started. Do not ingest STM ~stop_times~ into D1 again. Do not ~DELETE~
+the existing 466 MB D1 (writes are billed). Pack builder writes a *local
+file*, then R2.
+
+* Goal
+Transit-style: compile GTFS once, ship a Montréal pack, answer map nearby
+and stop departures *on the phone*. Worker becomes publisher (manifest +
+optional RT overlay), not a SQL warehouse.
+
+App north star unchanged: open the map, see nearby stops, know what comes
+next. Same JSON shapes as today (~NearbyStop~, ~Departure~ in
+~src/lib/types.ts~).
+
+* Why
+Prod D1 (~mewtransit~, id ~b9fffb8a-200e-4fe0-842f-c4b3a615d7e6~):
+
+- 4.1M STM ~stop_times~ → 12.95M rows written vs free 100k/day
+- 466 MB vs 500 MB free cap
+- Nearby join (~departuresForStations~ in ~mewtransit-api/src/lib/store.ts~)
+  scanned tens of millions of rows, p99 > 1s
+
+That query filters ~platform.station_id IN (…)~ and ~t.service_id IN (…)~
+with *no* ~departure_sec~ bound and *no* ~LIMIT~. STM weekday service ids
+are almost the whole agency. Indexes we built (~stop_times_stop_sec~) are
+not on those predicates.
+
+GTFS-RT does not replace the timetable. STM public trip-updates is iBus
+(bus). Metro is not in it.
+
+* Non-goals (this slice)
+- Trip planning / RAPTOR / shapes
+- Putting the pack inside the IPA/APK or git
+- Re-introducing a bundled ~assets/SQLite/*.db~
+- Two workers
+- ~node-gtfs~ in the Worker
+- Fetching STM GTFS or RT on ~/v1/nearby~
+- Deleting or re-ingesting the current D1
+- Workers Paid as the strategy (optional later, not required)
+- Web local pack (web may keep hitting the Worker or skip)
+- Exo bus-sector zips
+
+* Architecture
+
+#+begin_src
+GTFS zips (STM, REM, exo trains)
+        │
+        ▼
+mewtransit-api/scripts/pack.ts     (Node, better-sqlite3, local disk)
+        │
+        ▼
+tmp/pack/montreal-YYYYMMDD.db  +  manifest.json
+        │
+        ▼
+R2  packs/montreal/current.json
+    packs/montreal/<civilDate>/pack.db
+        │
+        ▼
+Expo app  GET current.json → download db → expo-sqlite
+        │
+        ├─ map pan / nearby   local bbox + departures
+        └─ stop detail        local departures
+        │
+        ▼ (later, online only)
+Worker  STM RT snapshot (apikey, cron) → overlay by trip_id
+#+end_src
+
+D1 is *out* of the STM timetable path. REM/exo times go in the *same pack*
+so the app has one query engine. Existing rem/exo D1 rows can stay until
+the app no longer calls ~/v1/nearby~.
+
+* Reuse (do not rewrite)
+
+| Piece | Path |
+|---|---|
+| Feed URLs | ~mewtransit-api/src/lib/gtfs.ts~ ~STATIC_FEEDS~ |
+| Normalize agencies/stops/names | ~normalizeFeed~, ~normalizeStmStops~, ~displayStopName~ |
+| Service ids valid from a civil date | ~rawServiceIdsValidFrom~ |
+| STM ~stop_times~ streaming | ~mewtransit-api/scripts/ingest.ts~ (do *not* load 200 MB into RAM) |
+| Montreal civil clock | ~montrealParts~, ~shiftYmd~, ~weekdayOfYmd~, ~parseGtfsTimeSec~, ~gtfsDepartureUtc~ in ~src/lib/time.ts~ |
+| Nearby ranking | ~pickNearby~ / ~isMajorStop~ in ~mewtransit-api/src/lib/nearby.ts~ — *copy* into the app (keep rem/exo + ~stm:STATION_*~ visible) |
+| App types | ~MewTransit/src/lib/types.ts~ |
+| App API calls to replace | ~MewTransit/src/lib/api.ts~ (~radius_m=1500~, ~limit=16~, ~departures=3~; stop detail ~limit=24~) |
+| Downtown fallback | ~DOWNTOWN~ 45.508, −73.568 |
+
+Ids stay agency-prefixed (~stm:~, ~rem:~, ~exo:~) exactly as ~prefixId~ does.
+
+* Pack format
+
+** One SQLite file
+~montreal-<YYYYMMDD>.db~ (UTF-8, SQLite 3). Built on the laptop/CI with
+~better-sqlite3~. Opened on device with ~expo-sqlite~.
+
+Do *not* use D1 to build it. Do *not* emit a giant .sql for ~wrangler d1 execute~.
+
+** Coverage
+One file for STM + REM + exo trains.
+
+Materialize departures for:
+
+- ~civilDate~ (America/Toronto)
+- ~civilDate + 1 day~
+- leftover after-midnight trips from ~civilDate − 1~ (~departure_sec >= 86400~)
+
+Same semantics as ~departuresForStations~ today. A pack built at 03:00
+lasts until the next night without a hole at midnight.
+
+** Schema (exact)
+
+#+begin_src sql
+PRAGMA journal_mode = OFF;
+PRAGMA synchronous = OFF;   -- builder only
+PRAGMA foreign_keys = OFF;
+
+CREATE TABLE meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
+CREATE TABLE routes (
+  id TEXT PRIMARY KEY,
+  agency_id TEXT NOT NULL,
+  short_name TEXT NOT NULL,
+  long_name TEXT NOT NULL,
+  color TEXT NOT NULL,
+  text_color TEXT NOT NULL,
+  mode TEXT NOT NULL
+);
+
+CREATE TABLE stops (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  lat REAL NOT NULL,
+  lon REAL NOT NULL,
+  agency_id TEXT NOT NULL,
+  wheelchair INTEGER NOT NULL DEFAULT 0,
+  is_station INTEGER NOT NULL DEFAULT 0,
+  station_id TEXT NOT NULL
+);
+
+CREATE TABLE stop_routes (
+  stop_id TEXT NOT NULL,
+  route_id TEXT NOT NULL,
+  PRIMARY KEY (stop_id, route_id)
+);
+
+-- One row = one scheduled departure at a *station* (parent).
+-- station_id is denormalized so nearby does not join platforms.
+CREATE TABLE departures (
+  station_id TEXT NOT NULL,
+  stop_id TEXT NOT NULL,
+  trip_id TEXT NOT NULL,
+  route_id TEXT NOT NULL,
+  service_ymd INTEGER NOT NULL,
+  departure_sec INTEGER NOT NULL,
+  headsign TEXT NOT NULL
+);
+
+CREATE INDEX stops_station_lat_lon ON stops (is_station, lat, lon);
+CREATE INDEX stop_routes_stop ON stop_routes (stop_id);
+CREATE INDEX dep_station_sec ON departures (station_id, service_ymd, departure_sec);
+#+end_src
+
+~meta~ keys (all strings):
+
+- ~schema_version~ = ~1~
+- ~pack_id~ = ~montreal~
+- ~civil_date~ = ~YYYY-MM-DD~ (the pack's "today")
+- ~timezone~ = ~America/Toronto~
+- ~built_at~ = ISO-8601 UTC
+- ~stm_feed_version~, ~rem_feed_version~, ~exo_feed_version~ (empty if missing)
+
+~stops~: only ~is_station = 1~ rows need to appear in nearby, but *keep
+platforms* if they help debugging; nearby *must* filter ~is_station = 1~.
+~station_id~ on a parent is its own ~id~. Names already passed through
+~displayStopName~ / agency normalizers.
+
+~departures.station_id~ = parent station id (~platform.station_id~ today).
+~departures.stop_id~ = platform id (needed later for RT match).
+
+Do not store calendar, trips, or raw ~stop_times~ in the pack. The builder
+resolves services and throws the warehouse away.
+
+** Manifest (~current.json~)
+
+#+begin_src json
+{
+  "schemaVersion": 1,
+  "packId": "montreal",
+  "civilDate": "2026-08-16",
+  "timezone": "America/Toronto",
+  "builtAt": "2026-08-16T07:00:00.000Z",
+  "sqliteBytes": 28441122,
+  "sqliteSha256": "hex lowercase",
+  "objectKey": "packs/montreal/2026-08-16/pack.db",
+  "feeds": [
+    {
+      "agency": "stm",
+      "url": "https://www.stm.info/sites/default/files/gtfs/gtfs_stm.zip",
+      "etag": "…",
+      "lastModified": "…",
+      "feedVersion": "20260805110000_26S"
+    }
+  ]
+}
+#+end_src
+
+SHA-256 of the raw ~pack.db~ bytes. App refuses to swap if hash mismatches.
+
+** R2 layout
+Bucket name: ~mewtransit-gtfs~ (create if missing; not public on the
+internet — Worker or presigned/custom domain later; *v1 may use a
+temporarily public GET* only if that unblocks the app, then lock it).
+
+- ~gtfs/stm/<etag-or-version>.zip~ + ~gtfs/stm/current.zip~ (archive, later)
+- ~packs/montreal/<YYYY-MM-DD>/pack.db~
+- ~packs/montreal/<YYYY-MM-DD>/manifest.json~
+- ~packs/montreal/current.json~  (copy of that day's manifest)
+
+v1 builder may upload with ~wrangler r2 object put~ or the AWS S3 API.
+A Worker binding comes in the "publish" TODO, not the first slice.
+
+* Builder
+
+** Location
+~mewtransit-api/scripts/pack.ts~
+
+~package.json~:
+
+#+begin_src
+"pack": "tsx scripts/pack.ts"
+#+end_src
+
+** CLI
+#+begin_src
+npx tsx scripts/pack.ts
+  [--date YYYY-MM-DD]          # default: America/Toronto today
+  [--out dir]                  # default: tmp/pack
+  [--agency rem|exo|stm]       # repeatable; default all three
+  [--skip-upload]              # always default until R2 TODO is done
+#+end_src
+
+Exit non-zero if the output db is missing required ~meta~ or if
+~departures~ is empty for STM when ~--agency stm~ is included.
+
+** Algorithm
+1. For each agency, download zip to ~tmp/gtfs/<agency>.zip~ (reuse if
+   present and ~If-None-Match~ / mtime is fine). Record ETag.
+2. Unzip to ~tmp/gtfs/<agency>/~.
+3. Catalog: reuse ~normalizeFeed~ for rem/exo. For STM, reuse ingest's
+   streaming path for ~stop_times.txt~; still run ~normalizeStmStops~ on
+   ~stops.txt~.
+4. Compute service id sets for ~yesterday~, ~today~, ~tomorrow~ with the
+   same calendar rules as ~servicesOn~ / ~rawServiceIdsValidFrom~
+   (calendar + calendar_dates). Prefix service ids.
+5. Walk ~stop_times~ (stream STM). Keep a row if its trip's service is in
+   those three sets. Map stop → ~station_id~. Skip rows whose stop is
+   unknown.
+6. Insert into a *new* sqlite file (never mutate a previous pack in
+   place). Batch inserts (thousands per transaction).
+7. Write ~meta~, then ~manifest.json~ next to the db. Print:
+
+   : agencies, station_count, departure_count, bytes, path
+
+** Size budget (acceptance)
+Measure on a weekday pack with all three agencies:
+
+| | Soft | Hard abort |
+|---|---:|---:|
+| ~pack.db~ | ≤ 40 MB | > 80 MB |
+| ~stops~ ~is_station=1~ | ~9k | — |
+| ~departures~ | ~0.5–2.5M | > 5M (you materialized the warehouse; fix the filter) |
+
+If hard-abort: do *not* upload. Shrink by dropping ~civilDate+1~ only after
+confirming the service filter is actually applied. Never "fix" size by
+dropping STM bus.
+
+** Tests
+~mewtransit-api/src/lib/pack.test.ts~ (or script-level tests):
+
+- Tiny fixture zip / in-memory rows (reuse ~gtfs.test.ts~ rem/exo/STM
+  grouping fixtures).
+- Parent metro platforms collapse to one ~station_id~.
+- A trip valid only tomorrow does not appear as ~service_ymd = today~.
+- After-midnight ~departure_sec >= 86400~ kept for yesterday's service.
+- SHA-256 in manifest matches file bytes.
+
+Keep ~npm test~ including this file.
+
+* App
+
+** New deps
+~expo-sqlite~, ~expo-file-system~ (SDK 57 compatible versions). Do not
+add WatermelonDB / op-sqlite unless expo-sqlite cannot open a downloaded
+file (it can).
+
+** New modules
+
+| File | Role |
+|---|---|
+| ~src/lib/pack/manifest.ts~ | types + fetch ~current.json~ |
+| ~src/lib/pack/sync.ts~ | compare hash, download to cache, verify, atomic swap |
+| ~src/lib/pack/db.ts~ | open the active file; ~SELECT meta~ |
+| ~src/lib/pack/nearby.ts~ | bbox + haversine + copy of ~pickNearby~ |
+| ~src/lib/pack/departures.ts~ | next N at a station, Montreal clock |
+| ~src/lib/pack/queries.ts~ | the SQL strings |
+
+Paths (iOS/Android documents / cache):
+
+- ~<cache>/packs/montreal/current.json~
+- ~<cache>/packs/montreal/pack.db~          (active)
+- ~<cache>/packs/montreal/pack.db.download~ (temp)
+- ~<cache>/packs/montreal/pack.db.prev~     (keep one rollback)
+
+Swap: verify hash → ~rename download → pack.db~ (move old to ~.prev~).
+On open failure, roll back to ~.prev~.
+
+** Sync policy
+- On app foreground / first launch: fetch manifest (2 s timeout). If
+  newer (different ~sqliteSha256~ or ~civilDate~), download in
+  background. Map must render with the *previous* pack immediately.
+- If no local pack yet: show existing loading/error UI, do not hang the
+  map on a 40 MB download without a progress string.
+- If download fails: keep old pack; set a soft banner later (not in v1
+  if polish is separate).
+- Source of ~current.json~ v1: ~EXPO_PUBLIC_PACK_MANIFEST_URL~ (R2 public
+  or Worker). Default can be a workers.dev or R2.dev URL once uploaded.
+  Do *not* hardcode a personal machine path.
+
+** Local nearby (must match today's product)
+Inputs: ~lat, lon, radiusM=1500, limit=16, departures=3~.
+
+1. Bbox pad +250 m (same as ~stationCandidates~).
+2. ~SELECT~ stations ~is_station = 1~ in bbox.
+3. Haversine, drop > ~radiusM~, sort by distance.
+4. Attach ~routeIds~ from ~stop_routes~ for the *picked* ids only.
+5. ~pickNearby~ so rem/exo/~stm:STATION_*~ are not buried by buses.
+6. For each picked station, next ~departures~ rows (query below).
+7. Map ~departureTime~ with ~gtfsDepartureUtc(service_ymd, departure_sec)~.
+   *Port* ~time.ts~ into the app (~src/lib/time.ts~) — do not reimplement
+   DST. ~minutes~ via the same ~minutesUntil~. ~realtime: false~ for now.
+
+Departure SQL:
+
+#+begin_src sql
+SELECT d.stop_id, d.trip_id, d.route_id, d.service_ymd, d.departure_sec,
+       d.headsign, r.short_name, r.long_name, r.color, r.text_color,
+       r.agency_id, r.mode
+FROM departures d
+JOIN routes r ON r.id = d.route_id
+WHERE d.station_id = ?
+  AND (
+    (d.service_ymd = ? AND d.departure_sec >= ?)
+    OR (d.service_ymd = ? AND d.departure_sec >= ?)
+  )
+ORDER BY d.service_ymd, d.departure_sec
+LIMIT ?
+#+end_src
+
+Binds: ~stationId, todayYmd, todayDaySec, yesterdayYmd, 86400+todayDaySec, limit~.
+
+~Departure.id~ = ~${tripId}:${stationId}:${departure_sec}~ (same as store.ts).
+
+Stop detail (~src/app/stop/[id].tsx~): same query, ~limit=24~. 404 if
+stop missing.
+
+** Wire-up
+~src/lib/api.ts~: ~fetchNearby~ / ~fetchStopDepartures~ become functions
+that call the pack if ~db~ is open, else fall back to the Worker so a
+dev without a pack still works.
+
+~source~ field: ~pack~ plus ~civilDate~ when local; keep ~gtfs+fixture~
+only on the network fallback.
+
+** Web
+~transit-map.web.tsx~ may keep network nearby. Document it. Do not block
+the native slice on web sqlite.
+
+* Worker / D1 (later TODOs, not slice 1)
+
+After the app reads the pack:
+
+- Add ~GET /v1/pack/current~ that returns the manifest (and optionally
+  streams the db from R2 binding). Prefer this over a public bucket for
+  prod.
+- STM RT: secret ~STM_API_KEY~, header ~apikey~, cron 1/min, *one*
+  snapshot object (~rt/stm-trip-updates.json~ in R2 or one D1 row). App
+  overlays by ~trip_id~ + ~stop_id~. Do not fetch STM on user requests.
+- New D1 (~mewtransit-v2~) only if something still needs SQL on the
+  server (do *not* copy STM ~stop_times~). Old DB: leave it. Delete the
+  *database* later; never ~DELETE FROM stop_times~.
+
+Minute cron is currently in local ~wrangler.jsonc~ again (API-key work).
+Do not turn cron into another ingest. Snapshot writes are 1–2 rows.
+
+* Implementation order (next agent)
+
+Do these in order. Each has a done-when.
+
+** 1. Pack builder, local only
+~scripts/pack.ts~, rem+exo first (fast), then STM stream.
+Done when: ~npm run pack -- --skip-upload~ prints counts; weekday
+~pack.db~ ≤ 80 MB; tests pass.
+
+** 2. Manual query check
+Open the db with ~sqlite3~:
+
+#+begin_src
+SELECT count(*) FROM stops WHERE is_station=1;
+SELECT count(*) FROM departures;
+SELECT * FROM departures
+ WHERE station_id='stm:STATION_M140'
+ ORDER BY service_ymd, departure_sec LIMIT 10;
+#+end_src
+
+McGill parent is ~stm:STATION_M140~ (from the earlier ingest). Expect
+green-line departures, not an empty set.
+
+** 3. R2 upload + manifest
+Create bucket, put objects, write ~current.json~.
+Done when: curl of ~current.json~ returns today's hash and a GET of
+~pack.db~ matches sha256.
+
+** 4. App sync + local nearby
+Deps, modules above, wire ~fetchNearby~.
+Done when: iOS or Android simulator, downtown, shows mixed rem/exo/metro
+pins and scheduled minutes *with airplane mode on* after one successful
+sync.
+
+** 5. Stop detail from pack
+Done when: tap a stop, 24 upcoming, airplane mode still works.
+
+** 6. Only then: RT overlay / Worker pack route / drop network nearby
+
+* Forbidden
+- ~wrangler d1 execute --remote~ with INSERT/DELETE of STM times
+- ~npm run ingest:stm~
+- Bundling ~pack.db~ under ~assets/~
+- Committing zips or ~tmp/~
+- Starting nearby FROM a 4M-row ~stop_times~ join
+- Using Cache API to fetch STM on the request path (per-colo)
+
+* Context the last sessions already know
+- Worker: ~https://mewtransit-api.dgonot.workers.dev~
+- Secrets already created: ~STM_CLIENT_ID~, ~STM_CLIENT_SECRET~ (wrong
+  model). Code now wants ~STM_API_KEY~ only (~apikey~ header). User must
+  ~secret put STM_API_KEY~ and delete the old pair *when RT is picked up*,
+  not for the pack slice.
+- Health ~configured~ was overwritten by ~stmRtStatus~; fixed locally
+  (configured after the spread). May not be deployed.
+- OAuth token failed against STM; expected — shared secret unused.
+- ~project.org~ still has stale API TODOs about ingest-from-R2-to-D1;
+  those are superseded for STM (see NEXT).

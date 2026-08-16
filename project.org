@@ -11,26 +11,78 @@ Two repos:
 - this one — Expo app
 - [[file:../mewtransit-api/readme.org][mewtransit-api]] — Cloudflare Worker that owns GTFS and serves the app
 
+Next work: [[file:docs/local-pack-spec.org][local city pack spec]] (compile GTFS → downloadable
+SQLite → query on device). STM is too big for D1 *and* too big to
+bundle as a dump.
+
 Old local SQLite (~assets/SQLite/exo_trains.db~) is gone. The 2023
-~transit-worker~ experiment (raw STM dump into D1) is retired — STM is too
-big to ship as a dump.
+~transit-worker~ experiment (raw STM dump into D1) is retired.
 
 * Now
 The reset sprint. Get a usable map + nearby departures loop.
 
+** NEXT — local city pack (do this first)
+Spec (read before coding): [[file:docs/local-pack-spec.org][docs/local-pack-spec.org]]
+
+STM timetable does *not* live in D1. Compile GTFS → one Montréal SQLite
+pack on R2 → app downloads it → nearby / stop detail run on device
+(~expo-sqlite~). Worker becomes publisher, not a warehouse.
+
+Do *not* ~npm run ingest:stm~. Do *not* bundle a db in ~assets/~.
+
+*** TODO [#A] Pack builder: ~mewtransit-api/scripts/pack.ts~
+    Node + ~better-sqlite3~. Reuse ~normalizeFeed~, STM ~stop_times~
+    stream from ~scripts/ingest.ts~, Montreal calendar from ~src/lib/time.ts~.
+    Default: STM + REM + exo trains. Materialize today + tomorrow +
+    yesterday after-midnight. Schema and CLI are in the spec.
+    Done: ~npm run pack -- --skip-upload~ writes ~tmp/pack/*.db~; weekday
+    file ≤ 80 MB; ~stm:STATION_M140~ has metro departures.
+*** TODO [#A] Pack tests
+    Service-day filter, metro parent grouping, after-midnight leftovers,
+    manifest sha256. Hook into ~npm test~.
+*** TODO [#A] R2 bucket + upload pack + ~current.json~
+    Bucket ~mewtransit-gtfs~. Keys in the spec. v1 may use ~wrangler r2
+    object put~. Done: curl manifest; downloaded db matches sha256.
+*** TODO [#A] App: sync pack on launch
+    ~expo-file-system~ + ~expo-sqlite~. Fetch manifest, download to cache,
+    verify hash, atomic swap, keep one ~.prev~. Progress if no pack yet.
+    ~EXPO_PUBLIC_PACK_MANIFEST_URL~. Spec: ~src/lib/pack/*~.
+*** TODO [#A] App: local nearby + stop departures
+    Port ~pickNearby~ and ~time.ts~. Replace ~fetchNearby~ /
+    ~fetchStopDepartures~ when a pack is open; Worker fallback if not.
+    Done: simulator, downtown, mixed rem/exo/metro minutes with
+    *airplane mode on* after one sync.
+*** TODO [#B] Worker ~GET /v1/pack/current~ (and optional R2 stream)
+    After the pack works from a raw R2 URL. Lock the bucket down.
+*** TODO [#B] STM RT overlay on local scheduled times
+    ~STM_API_KEY~ (~apikey~ header, no OAuth). Cron-only snapshot.
+    App paints ~realtime~ / minutes by ~trip_id~ + platform ~stop_id~.
+    Not a substitute for the pack.
+*** TODO [#B] Stop using ~/v1/nearby~ for native once pack is default
+    Keep the endpoint for web / fallback.
+*** TODO [#C] New D1 only if something still needs server SQL
+    Catalog-only if needed. Never copy STM ~stop_times~. To drop the
+    blown DB, create a new database and retarget — do not ~DELETE FROM~.
+
 ** App
 *** DONE Track work in this file
 *** DONE Drop local SQLite / expo-sqlite / bundled Exo DB
+    2026-08-16: dropped the *bundled 2023 dump*. A *downloaded* pack is
+    a different thing (see NEXT). Do not put a db back in ~assets/~.
 *** DONE Expo SDK 57 + Expo Router + TypeScript
 *** DONE Map-first home (user location, nearby stop pins)
 *** DONE Bottom sheet: closest stops + next departures
 *** DONE Talk to mewtransit-api, not a local DB
+    Network nearby was the bridge. NEXT replaces it with a city pack.
 *** TODO Polish empty / denied-location / API-down states
+    Pack sync failure / first-download progress belongs here too.
 *** TODO Stop detail screen with full upcoming list + trip view
+    Upcoming list: from the pack (NEXT). Trip view: later.
 *** TODO Agency / mode filters (metro, bus, REM, train)
 *** TODO Recenter + follow-user camera
 *** TODO Dark / light map that tracks the OS
 *** TODO Show live ETAs when the API has realtime (not only scheduled times)
+    Blocked on NEXT RT overlay, not on D1.
 
 ** API
 *** DONE New sibling repo ~mewtransit-api~
@@ -38,17 +90,31 @@ The reset sprint. Get a usable map + nearby departures loop.
 *** DONE Fixture data so the app works before real ingest
 *** DONE Official REM GTFS URL (~https://gtfs.gpmmom.ca/gtfs/gtfs.zip~)
 *** DONE Ingest STM static GTFS (lean D1, remaining services only, no shapes dump)
+    FAILED STRATEGY. 4.1M stop_times → 12.95M rows written vs 100k/day;
+    466 MB; nearby join >50M reads, p99 >1s. Do not repeat. Pack instead.
+*** TODO Disable all D1 *timetable* writes
+    No re-ingest, no DELETE of STM rows. RT snapshot (1 row) is fine
+    once API key + cron are intentional.
 *** DONE Ingest REM static GTFS
 *** DONE Ingest Exo trains (~https://exo.quebec/xdata/trains/google_transit.zip~)
 *** DONE Lean D1 schema + spatial-ish bbox query for nearby
-*** TODO Cron refresh of static feeds
-*** TODO R2 archive of raw GTFS zips (versioned, ETag / current pointer)
-*** TODO Fetch-if-changed worker step: agency URL → R2 (same worker, not a second one)
-*** TODO Ingest from R2 → D1 only when the zip ETag changed
+    Fine for rem/exo size. Unusable for STM. Do not add STM times.
+*** TODO [#C] Cron refresh of static *zips into R2* (not into D1)
+    Supersedes "ingest from R2 → D1". Same worker, ETag, then run pack.
+*** TODO [#C] R2 archive of raw GTFS zips (versioned, ETag / current pointer)
+    Same bucket as packs. Can land with the pack upload TODO.
+*** CANCELLED Ingest from R2 → D1 only when the zip ETag changed
+    Wrong store for STM. Pack builder reads the zip (disk or R2) and
+    writes SQLite to R2.
 *** DONE Deploy worker (https://mewtransit-api.dgonot.workers.dev)
 *** TODO Custom domain the app can hit
-*** TODO Wire STM GTFS-RT credentials (OAuth client id + secret via wrangler secret)
-*** DONE STM RT rate limits: cron-only fetch (1/min), D1 snapshot, backoff on 400/429
+*** TODO [#B] Wire STM GTFS-RT API key (`STM_API_KEY` via wrangler secret)
+    Portal shared secret unused. Put ~STM_API_KEY~, delete
+    ~STM_CLIENT_ID~ / ~STM_CLIENT_SECRET~. After the pack, not before.
+*** DONE STM RT rate limits: cron-only fetch (1/min), snapshot, backoff on 400/429
+    Implementation exists; OAuth path removed in favor of ~apikey~.
+    Cron is back in local wrangler.jsonc; do not deploy until key is set
+    and pack slice does not need a quiet D1.
 *** TODO Live data (GTFS-RT): trip updates, vehicle positions, alerts — STM, REM, Exo
 
 ** Data notes
@@ -58,12 +124,16 @@ Exo trains: ~https://exo.quebec/xdata/trains/google_transit.zip~
 Exo also publishes a pile of bus-sector zips — later.
 REM: ~https://gtfs.gpmmom.ca/gtfs/gtfs.zip~
 
-STM ~stop_times~ is huge. Ingest must normalize (agencies, routes, stops,
-trips, calendar, stop_times) with indexes on ~(stop_id, departure_time)~.
-Never ship the 1.4GB dump again.
+STM ~stop_times~ is huge (~5M in the zip, 4.1M remaining-service). It is
+a *publishing* format. Compile it into per-station departures in a city
+pack. Never load it into D1. Never ship the 1.4GB dump in the app binary.
 
-Live data is a first-class goal, not a nice-to-have. Static GTFS is the
-fallback; GTFS-RT trip updates should drive the minutes on the map.
+4.1M rows are unique trip×stop events, reused across many calendar days.
+A weekday pack (today+tomorrow services only) should be tens of MB, not
+466 MB.
+
+Live data is a first-class goal. Static pack is the timetable; GTFS-RT
+trip updates paint minutes when online. Metro RT is generally not public.
 
 * Later
 Ideas, not commitments. Grab from here when ~Now~ is boring.
@@ -95,6 +165,7 @@ Ideas, not commitments. Grab from here when ~Now~ is boring.
 *** TODO Night-bus treatment
 *** TODO BIXI overlay (optional layer, not a second app)
 *** TODO Offline last-known schedules
+    Started as NEXT (downloaded city pack), not a stale bundled db.
 
 ** Agencies / coverage
 *** TODO Exo bus sectors (CIT*, MRCL*, LRRS, …)
@@ -110,3 +181,4 @@ Ideas, not commitments. Grab from here when ~Now~ is boring.
 - 2023–2024: Expo 50, local Exo-trains SQLite, browse routes → stops → times
 - 2023: ~transit-worker~ stub + failed STM-into-D1 experiment
 - 2026-08-16: Full reset. Map-first. API-owned data. SDK 57.
+- 2026-08-16: Strategy change: local city pack. Spec in ~docs/local-pack-spec.org~.
